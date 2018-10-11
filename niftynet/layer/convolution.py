@@ -10,6 +10,8 @@ from niftynet.layer.base_layer import TrainableLayer
 from niftynet.layer.bn import BNLayer
 from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
+from niftynet.layer.probability import Dirichlet, GumbelSoftmax
+from niftynet.layer import group_ops
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
 
@@ -63,7 +65,7 @@ class ConvLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor):
+    def layer_op(self, input_tensor, task_mask=None, task_it=0):
         input_shape = input_tensor.shape.as_list()
         n_input_chns = input_shape[-1]
         spatial_rank = layer_util.infer_spatial_rank(input_tensor)
@@ -82,23 +84,57 @@ class ConvLayer(TrainableLayer):
             'w', shape=w_full_size,
             initializer=self.initializers['w'],
             regularizer=self.regularizers['w'])
-        output_tensor = tf.nn.convolution(input=input_tensor,
-                                          filter=conv_kernel,
-                                          strides=full_stride,
-                                          dilation_rate=full_dilation,
-                                          padding=self.padding,
-                                          name='conv')
+
+        if task_mask is not None:
+            # Hadamard product between kernel and mask
+            # e.g if W is 3x3x10x5 then input_depth=10 with kernel size: 3x3x10
+            #                           output_depth=5 --> (3x3x10)x5 kernel
+            #
+            # We therefore learn a mask of shape 1x1x10xT where T := number of tasks
+            # e.g. M_t=1 = [0 0 1 1 0 0 1 1 0 1] task 1
+            #      M_t=2 = [1 0 0 0 0 1 0 0 0 0] shared
+            #      M_t=3 = [0 1 0 0 1 0 0 0 1 0] task 2
+            #
+            # We are only interested in kernels W[..., M_t==1, :]
+            # W * M_t = only updating kernel weights for feature maps at M_t
+            #
+            #   1. If looped over M_t t={1,2,..,T}, kernel weights only updated where M_t==1
+            #   2. Kernels will only be applied to feature maps from same group
+            #
+            # 1. If looped over different instances of mask such that sum_i (mask_i) = ones
+            #    then kernel weights will be only updated in areas with mask == 1
+            # 2. Kernel weights only get updated where mask_i == 1
+            # 3. At iteration t, output conv(input, W * M_t) will tensor of depth 5
+            #    with 0s at
+            conv_kernel_masked = conv_kernel * task_mask
+            output_tensor = tf.nn.convolution(input=input_tensor,
+                                              filter=conv_kernel_masked,
+                                              strides=full_stride,
+                                              dilation_rate=full_dilation,
+                                              padding=self.padding,
+                                              name="conv_masked")
+
+        else:
+            output_tensor = tf.nn.convolution(input=input_tensor,
+                                              filter=conv_kernel,
+                                              strides=full_stride,
+                                              dilation_rate=full_dilation,
+                                              padding=self.padding,
+                                              name='conv')
         if not self.with_bias:
             return output_tensor
 
         # adding the bias term
-        bias_term = tf.get_variable(
-            'b', shape=self.n_output_chns,
-            initializer=self.initializers['b'],
-            regularizer=self.regularizers['b'])
-        output_tensor = tf.nn.bias_add(output_tensor,
-                                       bias_term,
-                                       name='add_bias')
+        if task_it == 0:
+            # only add it once otherwise it will be added many times if using task iterations
+            bias_term = tf.get_variable(
+                'b', shape=self.n_output_chns,
+                initializer=self.initializers['b'],
+                regularizer=self.regularizers['b'])
+
+            output_tensor = tf.nn.bias_add(output_tensor,
+                                           bias_term,
+                                           name='add_bias')
         return output_tensor
 
 
