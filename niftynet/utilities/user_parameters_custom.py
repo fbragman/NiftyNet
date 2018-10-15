@@ -288,6 +288,60 @@ def __add_registration_args(parser):
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser
 
+def __add_multitask_args(parser):
+    parser.add_argument(
+        "--loss_border",
+        metavar='',
+        help="Set the border size for the loss function to ignore",
+        type=int,
+        default=0)
+
+    parser.add_argument(
+        "--num_classes",
+        help="Set number of classes for each task",
+        type=int_array,
+        default=-1)
+
+    parser.add_argument(
+        "--loss_task_1",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 1 type_str",
+        default='RMSE')
+
+    parser.add_argument(
+        "--loss_task_2",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 2 type_str",
+        default='CrossEntropy')
+
+    parser.add_argument(
+        "--task_1_type",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 1 type_str",
+        default='regression')
+
+    parser.add_argument(
+        "--task_2_type",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 2 type_str",
+        default='classification')
+
+    parser.add_argument(
+        "--output_interp_order_task1",
+        help='Output for task 1',
+        type=int,
+        default=3)
+
+    parser.add_argument(
+        "--output_interp_order_task2",
+        help='Output for task 2',
+        type=int,
+        default=0)
+
+    from niftynet.application.multitask_application import SUPPORTED_INPUT
+    parser = add_input_name_args(parser, SUPPORTED_INPUT)
+    return parser
+
 
 SUPPORTED_ARG_SECTIONS = {
     'REGRESSION': __add_regression_args,
@@ -295,5 +349,6 @@ SUPPORTED_ARG_SECTIONS = {
     'CLASSIFICATION': __add_classification_args,
     'AUTOENCODER': __add_autoencoder_args,
     'GAN': __add_gan_args,
-    'REGISTRATION': __add_registration_args
+    'REGISTRATION': __add_registration_args,
+    'MULTITASK': __add_multitask_args
 }
