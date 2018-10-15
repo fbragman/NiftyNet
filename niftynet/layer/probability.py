@@ -60,7 +60,7 @@ class GumbelSoftmax(object):
         :param eps:
         :return:
         """
-        U = tf.random_uniform(shape, minval=0, maxval=0)
+        U = tf.random_uniform(shape, minval=0, maxval=1)
         return -tf.log(-tf.log(U + eps) + eps)
 
     def gumbel_softmax_sample(self):
