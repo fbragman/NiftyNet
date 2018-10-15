@@ -64,6 +64,8 @@ SUPPORTED_NETWORK = {
 
     # classification
     "resnet": 'niftynet.network.resnet.ResNet',
+    "vgg16net": 'niftynet.network.vggnet.VGG16Net',
+    "vgg16net_gap": 'niftynet.network.vggnet_gap.VGG16Net',
     "se_resnet": 'niftynet.network.se_resnet.SE_ResNet',
 
     # autoencoder

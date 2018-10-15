@@ -10,6 +10,7 @@ from niftynet.layer.fully_connected import FullyConnectedLayer
 
 import tensorflow as tf
 
+
 class VGG16Net(BaseNet):
     """
     Implementation of VGG16-Net:
@@ -31,7 +32,7 @@ class VGG16Net(BaseNet):
                  b_initializer=None,
                  b_regularizer=None,
                  acti_func='relu',
-                 name='VGG16Net_AvgPool'):
+                 name='VGG16Net_GAP'):
 
         super(VGG16Net, self).__init__(
             num_classes=num_classes,
@@ -105,7 +106,9 @@ class VGG16Net(BaseNet):
                 # Global average across features
                 with tf.name_scope('global_average_pool'):
                     flow = tf.reduce_mean(flow, axis=[1, 2])
-                    layer_instances.append((downsample_layer, flow))
+                    # create bogus layer to work with print
+                    tmp_layer = DownSampleLayer(func='AVG')
+                    layer_instances.append((tmp_layer, flow))
 
             elif layer_type == 'layer':
 
