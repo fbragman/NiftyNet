@@ -8,6 +8,7 @@ from niftynet.layer.downsample import DownSampleLayer
 from niftynet.network.base_net import BaseNet
 from niftynet.layer.fully_connected import FullyConnectedLayer
 
+import tensorflow as tf
 
 class MT1_VGG16Net(BaseNet):
     """
@@ -61,27 +62,30 @@ class MT1_VGG16Net(BaseNet):
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
 
         # main network graph
-        flow, layer_instances = self.create_main_network_graph(images, is_training)
+        with tf.variable_scope('vgg_body'):
+            flow, layer_instances = self.create_main_network_graph(images, is_training)
 
         # add task 1 output
         task1_layer = self.task1_layers
-        fc_layer = FullyConnectedLayer(
-            n_output_chns=task1_layer['n_features'],
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-        )
-        task1_out = fc_layer(flow)
-        layer_instances.append((fc_layer, task1_out))
+        with tf.variable_scope('task_1_fc'):
+            fc_layer = FullyConnectedLayer(
+                n_output_chns=task1_layer['n_features'],
+                w_initializer=self.initializers['w'],
+                w_regularizer=self.regularizers['w'],
+            )
+            task1_out = fc_layer(flow)
+            layer_instances.append((fc_layer, task1_out))
 
         # add task 2 output
         task2_layer = self.task2_layers
-        fc_layer = FullyConnectedLayer(
-            n_output_chns=task1_layer['n_features'],
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-        )
-        task2_out = fc_layer(flow)
-        layer_instances.append((fc_layer, task2_out))
+        with tf.variable_scope('task_2_fc'):
+            fc_layer = FullyConnectedLayer(
+                n_output_chns=task2_layer['n_features'],
+                w_initializer=self.initializers['w'],
+                w_regularizer=self.regularizers['w'],
+            )
+            task2_out = fc_layer(flow)
+            layer_instances.append((fc_layer, task2_out))
 
         if is_training:
             self._print(layer_instances)
