@@ -4,6 +4,7 @@ from __future__ import absolute_import, print_function
 from six.moves import range
 
 from niftynet.layer.convolution import ConvolutionalLayer
+from niftynet.layer.convolution import LearnedCategoricalGroupConvolutionalLayer
 from niftynet.layer.downsample import DownSampleLayer
 from niftynet.network.base_net import BaseNet
 from niftynet.layer.fully_connected import FullyConnectedLayer
@@ -121,9 +122,12 @@ class LearnedMTVGG16Net(BaseNet):
 
             # first layer
             if layer_iter == 0:
-                conv_layer = ConvolutionalLayer(
+                conv_layer = LearnedCategoricalGroupConvolutionalLayer(
                     n_output_chns=layer['n_features'],
                     kernel_size=layer['kernel_size'],
+                    categorical=True,
+                    use_hardcat=True,
+                    tau=0.5,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],

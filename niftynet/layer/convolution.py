@@ -826,3 +826,180 @@ class GroupSharedConvolutionalLayer(TrainableLayer):
         ctr += 1
 
         return output_tensor
+
+
+class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
+    """
+    This class defines a composite layer with optional components::
+
+        convolution -> batch_norm -> activation -> dropout
+
+    Learn how to disentangle features by learning categorical distribution with Dirichlet prior
+    over convolutional kernels
+
+    Params of interest:
+
+    1.  categorical = True
+            if set to False, priors to categorical are used as soft weights to kernels
+
+    2.  use_hard = True
+            if set to True, hard approximation in fwd pass and bwd pass on continuous GS approximation
+        use_hard = False
+            if set to False, soft approximation with GS in fwd and bwd pass
+
+    3.  with_gn | group_norm on clusters
+            if set to True, group normalisation will be performed
+            it will be called on each separate kernel group i.e. task specific and task invariant
+
+    4.  tau | temperature for Gumbel Softmax is categorical = True
+            tau = 0 GS -> Categorical
+            this should be annealed over training or if learned becomes entropy regularisation (Szgedy et al, 2015)
+            if learned: GS can dynamically adjust "confidence" of proposed samples during training
+
+
+    The b_initializer and b_regularizer are applied to the ConvLayer
+    The w_initializer and w_regularizer are applied to the ConvLayer,
+    the batch normalisation layer, and the activation layer (for 'prelu')
+    """
+
+    def __init__(self,
+                 n_output_chns,
+                 kernel_size=3,
+                 stride=1,
+                 dilation=1,
+                 padding='SAME',
+                 categorical=True,
+                 use_hardcat=True,
+                 tau=1,
+                 with_bias=False,
+                 with_bn=True,
+                 with_gn=False,
+                 group_size=-1,
+                 acti_func=None,
+                 preactivation=False,
+                 w_initializer=None,
+                 w_regularizer=None,
+                 b_initializer=None,
+                 b_regularizer=None,
+                 moving_decay=0.9,
+                 eps=1e-5,
+                 name="conv"):
+
+        self.acti_func = acti_func
+        self.with_bn = with_bn
+        self.group_size = group_size
+        self.preactivation = preactivation
+        self.layer_name = '{}'.format(name)
+
+        self.categorical = categorical
+        self.use_hardcat = use_hardcat
+        self.tau = tau
+        self.with_gn = with_gn
+
+        if self.with_bn and group_size > 0:
+            raise ValueError('only choose either batchnorm or groupnorm')
+        if self.with_bn:
+            self.layer_name += '_bn'
+        if self.group_size > 0:
+            self.layer_name += '_gn'
+        if self.acti_func is not None:
+            self.layer_name += '_{}'.format(self.acti_func)
+        super(LearnedCategoricalGroupConvolutionalLayer, self).__init__(name=self.layer_name)
+
+        # for ConvLayer
+        self.n_output_chns = n_output_chns
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.dilation = dilation
+        self.padding = padding
+        self.with_bias = with_bias
+
+        # for BNLayer
+        self.moving_decay = moving_decay
+        self.eps = eps
+
+        self.initializers = {
+            'w': w_initializer if w_initializer else default_w_initializer(),
+            'b': b_initializer if b_initializer else default_b_initializer()}
+
+        self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
+
+    def layer_op(self, input_tensor, is_training=None, keep_prob=None):
+
+        if self.with_bn:
+            if is_training is None:
+                raise ValueError('is_training argument should be '
+                                 'True or False unless with_bn is False')
+
+            # Only need 1 batch-norm layer since grouping is done by masking input tensor
+            group_bn = BNLayer(regularizer=self.regularizers['w'],
+                               moving_decay=self.moving_decay,
+                               eps=self.eps,
+                               name='bn_')
+        else:
+            group_bn = None
+
+        if self.acti_func is not None:
+            acti_layer = ActiLayer(
+                func=self.acti_func,
+                regularizer=self.regularizers['w'],
+                name='acti_')
+
+        if keep_prob is not None:
+            dropout_layer = ActiLayer(func='dropout', name='dropout_')
+
+        conv_layer = ConvLayer(n_output_chns=self.n_output_chns,
+                               kernel_size=self.kernel_size,
+                               stride=self.stride,
+                               dilation=self.dilation,
+                               padding=self.padding,
+                               with_bias=self.with_bias,
+                               w_initializer=self.initializers['w'],
+                               w_regularizer=self.regularizers['w'],
+                               b_initializer=self.initializers['b'],
+                               b_regularizer=self.regularizers['b'],
+                               name='group_conv_')
+
+
+        def activation(output_tensor, bn_layer):
+            if self.with_bn and bn_layer is not None:
+                output_tensor = bn_layer(output_tensor, is_training)
+            if self.acti_func is not None:
+                output_tensor = acti_layer(output_tensor)
+            if keep_prob is not None:
+                output_tensor = dropout_layer(output_tensor, keep_prob=keep_prob)
+            return output_tensor
+
+        with tf.variable_scope('categorical_p'):
+
+            # Number of kernels
+            N = self.n_output_chns
+
+            # Dirichlet probabilities / parameters of Categorical
+            # Initialised with uniform prob e.g. p = 1/g where g=3 for 2 task problem
+            dirichlet_init = (1/3) * np.ones((N, 3), dtype=np.float32)
+            dirichlet_p = tf.get_variable('cat_prior',
+                                          initializer=dirichlet_init,
+                                          dtype=tf.float32,
+                                          trainable=True)
+
+        if self.categorical:
+            with tf.variable_scope('categorical_sampling'):
+
+                # Create object for categorical
+                cat_dist = GumbelSoftmax(dirichlet_p, self.tau)
+
+                # Sample from mask - [N by 3] either one-hot or soft cat
+                cat_mask = cat_dist(hard=self.use_hardcat)
+                cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+
+        # Convolution on clustered kernels using sampled mask
+        output_layers = []
+        for task_it, sampled_mask in enumerate(cat_mask_unstacked):
+            a = 2
+
+
+
+
+
+
