@@ -66,6 +66,7 @@ class ConvLayer(TrainableLayer):
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
     def layer_op(self, input_tensor, task_mask=None, task_it=0):
+
         input_shape = input_tensor.shape.as_list()
         n_input_chns = input_shape[-1]
         spatial_rank = layer_util.infer_spatial_rank(input_tensor)
@@ -106,13 +107,22 @@ class ConvLayer(TrainableLayer):
             #
             # kernel_group = conv_kernel * task_mask_i
             #                (w x h x d x N) * (N x 1) by broadcasting masks/weights relevant kernels
-            conv_kernel_masked = conv_kernel * task_mask
-            output_tensor = tf.nn.convolution(input=input_tensor,
-                                              filter=conv_kernel_masked,
-                                              strides=full_stride,
-                                              dilation_rate=full_dilation,
-                                              padding=self.padding,
-                                              name="conv_masked")
+
+            # Catch if single tensor is parsed or list of clustered tensors
+            if type(input_tensor) is not list:
+
+                # most likely for first layer when parsing the image
+                conv_kernel_masked = conv_kernel * task_mask
+                output_tensor = tf.nn.convolution(input=input_tensor,
+                                                  filter=conv_kernel_masked,
+                                                  strides=full_stride,
+                                                  dilation_rate=full_dilation,
+                                                  padding=self.padding,
+                                                  name="conv_masked")
+            else:
+
+                # when parsing clustered sparse tensors so task_1_tensor, ..., task_t_tensor, shared_tensor
+                a = 2
 
             # TODO figure out batch-norm, group-norm strategy
 
@@ -997,13 +1007,29 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
 
         # Convolution on clustered kernels using sampled mask
-        output_layers = []
-        for task_it, sampled_mask in enumerate(cat_mask_unstacked):
 
-            if self.preactivation:
-                output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask, task_it))
-            else:
-                output_layers.append(activation(conv_layer(input_tensor, sampled_mask, task_it), group_bn))
+        # Check whether input_tensor is list or not
+        # If list: then we are at layer > 1
+        # If not: then we are at layer 1
+
+        output_layers = []
+
+        if type(input_tensor) is not list:
+            for task_it, sampled_mask in enumerate(cat_mask_unstacked):
+
+                if self.preactivation:
+                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask, task_it))
+                else:
+                    output_layers.append(activation(conv_layer(input_tensor, sampled_mask, task_it), group_bn))
+        else:
+            task_it = 0
+            for clustered_tensor, sampled_mask in zip(input_tensor, cat_mask_unstacked):
+
+                if self.preactivation:
+                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask, task_it))
+                else:
+                    output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask, task_it), group_bn))
+                task_it += 1
 
         # task 1 tensor
         with tf.name_scope('clustered_tensor_merge'):
@@ -1016,7 +1042,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             # shared tensor
             shared_tensor = output_layers[1]
 
-        return task_1_tensor, task_2_tensor, shared_tensor, cat_mask_unstacked
+            clustered_tensors = [task_1_tensor, shared_tensor, task_2_tensor]
+
+        return clustered_tensors, cat_mask_unstacked
 
 
 

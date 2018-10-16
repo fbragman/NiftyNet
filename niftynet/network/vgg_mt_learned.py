@@ -61,21 +61,17 @@ class LearnedMTVGG16Net(BaseNet):
             {'name': 'layer_4', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_4'},
             {'name': 'layer_5', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
-            {'name': 'maxpool_5'},
-            {'name': 'fc_1', 'n_features': 4096*2},
-            {'name': 'fc_2', 'n_features': 4096*2}]
+            {'name': 'gap'}]
 
-        self.task1_layers = [
-            {'name': 'task_1_out', 'n_features': self.num_classes[0]}]
-
-        self.task2_layers = [
-            {'name': 'task_2_out', 'n_features': self.num_classes[1]}]
+        self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
+        self.task2_layers = {'name': 'task_2_out', 'n_features': self.num_classes[1]}
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
 
         # main network graph
         with tf.variable_scope('vgg_body'):
-            flow, layer_instances = self.create_main_network_graph(images, is_training)
+            grouped_flow, layer_instances, mask_instances = \
+                self.create_main_network_graph(images, is_training)
 
         # add task 1 output
         task1_layer = self.task1_layers
@@ -85,7 +81,7 @@ class LearnedMTVGG16Net(BaseNet):
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
-            task1_out = fc_layer(flow)
+            task1_out = fc_layer(grouped_flow[0])
             layer_instances.append((fc_layer, task1_out))
 
         # add task 2 output
@@ -96,7 +92,7 @@ class LearnedMTVGG16Net(BaseNet):
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
-            task2_out = fc_layer(flow)
+            task2_out = fc_layer(grouped_flow[-1])
             layer_instances.append((fc_layer, task2_out))
 
         if is_training:
@@ -108,6 +104,8 @@ class LearnedMTVGG16Net(BaseNet):
     def create_main_network_graph(self, images, is_training):
 
         layer_instances = []
+        mask_instances = []
+
         for layer_iter, layer in enumerate(self.layers):
 
             # Get layer type
@@ -130,20 +128,22 @@ class LearnedMTVGG16Net(BaseNet):
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                     name=layer['name'])
-                flow = conv_layer(images, is_training)
-                layer_instances.append((conv_layer, flow))
+                grouped_flow, learned_mask = conv_layer(images, is_training)
+                layer_instances.append((conv_layer, grouped_flow))
+                mask_instances.append((conv_layer, learned_mask))
+
                 repeat_conv = repeat_conv - 1
 
             # last layer
-            if layer_iter == len(self.layers) - 1:
-                fc_layer = FullyConnectedLayer(
-                    n_output_chns=layer['n_features'],
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                )
-                flow = fc_layer(flow)
-                layer_instances.append((fc_layer, flow))
-                continue
+            #if layer_iter == len(self.layers):
+            #    fc_layer = FullyConnectedLayer(
+            #        n_output_chns=layer['n_features'],
+            #        w_initializer=self.initializers['w'],
+            #        w_regularizer=self.regularizers['w'],
+            #    )
+            #    flow = fc_layer(flow)
+            #    layer_instances.append((fc_layer, flow))
+            #    continue
 
             # all other
             if layer_type == 'maxpool':
@@ -151,34 +151,54 @@ class LearnedMTVGG16Net(BaseNet):
                     kernel_size=2,
                     func='MAX',
                     stride=2)
-                flow = downsample_layer(flow)
-                layer_instances.append((downsample_layer, flow))
+                # iterate pooling over clustered
+                pooled_flow = []
+                for clustered_tensor in grouped_flow:
+                    pooled_flow.append(downsample_layer(clustered_tensor))
+                grouped_flow = pooled_flow
+                layer_instances.append((downsample_layer, grouped_flow))
+
+            elif layer_type == 'gap':
+                with tf.name_scope('global_average_pool'):
+                    # Perform global average pooling over cluster
+                    pooled_flow = []
+                    for clustered_tensor in grouped_flow:
+                        pooled_flow.append(tf.reduce_mean(clustered_tensor, axis=[1, 2]))
+                    grouped_flow = pooled_flow
+                    # create bogus layer to work with print
+                    tmp_layer = DownSampleLayer(func='AVG')
+                    layer_instances.append((tmp_layer, grouped_flow))
 
             elif layer_type == 'layer':
 
                 for _ in range(repeat_conv):
-                    conv_layer = ConvolutionalLayer(
+                    conv_layer = LearnedCategoricalGroupConvolutionalLayer(
                         n_output_chns=layer['n_features'],
                         kernel_size=layer['kernel_size'],
+                        categorical=True,
+                        use_hardcat=True,
+                        tau=0.5,
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name=layer['name'])
-                    flow = conv_layer(flow, is_training)
-                    layer_instances.append((conv_layer, flow))
+                    grouped_flow, learned_mask = conv_layer(grouped_flow, is_training)
+                    layer_instances.append((conv_layer, grouped_flow))
+                    mask_instances.append((conv_layer, learned_mask))
 
             elif layer_type == 'fc':
+                # not used if just doing average pooling before branching out
+                #fc_layer = FullyConnectedLayer(
+                #    n_output_chns=layer['n_features'],
+                #    acti_func=self.acti_func,
+                #    w_initializer=self.initializers['w'],
+                #    w_regularizer=self.regularizers['w'],
+                #)
+                #flow = fc_layer(flow)
+                #layer_instances.append((fc_layer, flow))
+                raise NotImplementedError
 
-                fc_layer = FullyConnectedLayer(
-                    n_output_chns=layer['n_features'],
-                    acti_func=self.acti_func,
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                )
-                flow = fc_layer(flow)
-                layer_instances.append((fc_layer, flow))
-
-        return flow, layer_instances
+        return grouped_flow, layer_instances, mask_instances
 
     @staticmethod
     def _print(list_of_layers):
