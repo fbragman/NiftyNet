@@ -70,6 +70,9 @@ SUPPORTED_NETWORK = {
     "vgg16net_gap": 'niftynet.network.vggnet_gap.VGG16Net',
     "se_resnet": 'niftynet.network.se_resnet.SE_ResNet',
 
+    # multitask
+    "vgg_learned_mt": 'niftynet.network.vgg_mt_learned.LearnedMTVGG16Net',
+
     # autoencoder
     "vae": 'niftynet.network.vae.VAE'
 }

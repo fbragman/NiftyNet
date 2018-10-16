@@ -288,6 +288,7 @@ def __add_registration_args(parser):
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser
 
+
 def __add_multitask_args(parser):
     parser.add_argument(
         "--loss_border",
@@ -298,7 +299,7 @@ def __add_multitask_args(parser):
 
     parser.add_argument(
         "--num_classes",
-        help="Set number of classes for each task",
+        help="Set number of classes for tasks as nc_1, nc_2",
         type=int_array,
         default=-1)
 

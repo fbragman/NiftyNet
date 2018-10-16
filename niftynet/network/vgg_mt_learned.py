@@ -34,8 +34,7 @@ class LearnedMTVGG16Net(BaseNet):
     """
 
     def __init__(self,
-                 task1_classes,
-                 task2_classes,
+                 num_classes,
                  w_initializer=None,
                  w_regularizer=None,
                  b_initializer=None,
@@ -44,8 +43,7 @@ class LearnedMTVGG16Net(BaseNet):
                  name='MT1_VGG16Net'):
 
         super(LearnedMTVGG16Net, self).__init__(
-            task1_classes=task1_classes,
-            task2_classes=task2_classes,
+            num_classes=num_classes,
             w_initializer=w_initializer,
             w_regularizer=w_regularizer,
             b_initializer=b_initializer,
@@ -68,10 +66,10 @@ class LearnedMTVGG16Net(BaseNet):
             {'name': 'fc_2', 'n_features': 4096*2}]
 
         self.task1_layers = [
-            {'name': 'task_1_out', 'n_features': task1_classes}]
+            {'name': 'task_1_out', 'n_features': self.num_classes[0]}]
 
         self.task2_layers = [
-            {'name': 'task_2_out', 'n_features': task2_classes}]
+            {'name': 'task_2_out', 'n_features': self.num_classes[1]}]
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
 
