@@ -86,26 +86,26 @@ class ConvLayer(TrainableLayer):
             regularizer=self.regularizers['w'])
 
         if task_mask is not None:
-            # Hadamard product between kernel and mask
+            # Masking of kernels by multiplication with learned categorical mask grouping
+            #
+            # W is [w, h, d, N]: w,h: kernel size (3x3), d: depth of kernel, N: number of kernels
             # e.g if W is 3x3x10x5 then input_depth=10 with kernel size: 3x3x10
             #                           output_depth=5 --> (3x3x10)x5 kernel
             #
-            # We therefore learn a mask of shape 1x1x10xT where T := number of tasks
-            # e.g. M_t=1 = [0 0 1 1 0 0 1 1 0 1] task 1
-            #      M_t=2 = [1 0 0 0 0 1 0 0 0 0] shared
-            #      M_t=3 = [0 1 0 0 1 0 0 0 1 0] task 2
+            # learned mask M is of size N by (T+1) where T: number of tasks
             #
-            # We are only interested in kernels W[..., M_t==1, :]
-            # W * M_t = only updating kernel weights for feature maps at M_t
+            #  e.g. M_t=1 = [0 0 1 1 0] task 1
+            #       M_t=2 = [1 0 0 0 0] shared
+            #       M_t=3 = [0 1 0 0 1] task 2
             #
-            #   1. If looped over M_t t={1,2,..,T}, kernel weights only updated where M_t==1
-            #   2. Kernels will only be applied to feature maps from same group
+            #       kernel n=1 is assigned to shared cluster
+            #       kernel n=5 is assigned to task 2 cluster
             #
-            # 1. If looped over different instances of mask such that sum_i (mask_i) = ones
-            #    then kernel weights will be only updated in areas with mask == 1
-            # 2. Kernel weights only get updated where mask_i == 1
-            # 3. At iteration t, output conv(input, W * M_t) will tensor of depth 5
-            #    with 0s at
+            # if learning hard mask --> binary mask
+            # if learning soft mask --> kernels are weighted
+            #
+            # kernel_group = conv_kernel * task_mask_i
+            #                (w x h x d x N) * (N x 1) by broadcasting masks/weights relevant kernels
             conv_kernel_masked = conv_kernel * task_mask
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel_masked,
@@ -113,6 +113,8 @@ class ConvLayer(TrainableLayer):
                                               dilation_rate=full_dilation,
                                               padding=self.padding,
                                               name="conv_masked")
+
+            # TODO figure out batch-norm, group-norm strategy
 
         else:
             output_tensor = tf.nn.convolution(input=input_tensor,
@@ -124,8 +126,8 @@ class ConvLayer(TrainableLayer):
         if not self.with_bias:
             return output_tensor
 
-        # adding the bias term
-        if task_it == 0:
+        # adding the bias term in normal ConvLayer, don't do it for learned grouping..
+        if task_mask is not None:
             # only add it once otherwise it will be added many times if using task iterations
             bias_term = tf.get_variable(
                 'b', shape=self.n_output_chns,
@@ -256,6 +258,7 @@ class ConvolutionalLayer(TrainableLayer):
             output_tensor = activation(conv_layer(input_tensor))
 
         return output_tensor
+
 
 class DirichletGumbelGroupConvolutionalLayer(TrainableLayer):
 
@@ -996,7 +999,24 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         # Convolution on clustered kernels using sampled mask
         output_layers = []
         for task_it, sampled_mask in enumerate(cat_mask_unstacked):
-            a = 2
+
+            if self.preactivation:
+                output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask, task_it))
+            else:
+                output_layers.append(activation(conv_layer(input_tensor, sampled_mask, task_it), group_bn))
+
+        # task 1 tensor
+        with tf.name_scope('clustered_tensor_merge'):
+            # task 1 tensor
+            task_1_tensor = output_layers[0] + output_layers[1]
+
+            # task 2 tensor
+            task_2_tensor = output_layers[2] + output_layers[1]
+
+            # shared tensor
+            shared_tensor = output_layers[1]
+
+        return task_1_tensor, task_2_tensor, shared_tensor, cat_mask_unstacked
 
 
 
