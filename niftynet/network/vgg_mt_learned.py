@@ -70,7 +70,7 @@ class LearnedMTVGG16Net(BaseNet):
 
         # main network graph
         with tf.variable_scope('vgg_body'):
-            grouped_flow, layer_instances, mask_instances = \
+            grouped_flow, layer_instances, cats = \
                 self.create_main_network_graph(images, is_training)
 
         # add task 1 output
@@ -97,7 +97,8 @@ class LearnedMTVGG16Net(BaseNet):
 
         if is_training:
             self._print(layer_instances)
-            return [task1_out, task2_out]
+            cat_ps = [x[0] for x in cats]
+            return [task1_out, task2_out], cat_ps
 
         return layer_instances[layer_id][1]
 
@@ -123,14 +124,14 @@ class LearnedMTVGG16Net(BaseNet):
                     kernel_size=layer['kernel_size'],
                     categorical=True,
                     use_hardcat=True,
-                    tau=0.5,
+                    tau=2,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                     name=layer['name'])
-                grouped_flow, learned_mask = conv_layer(images, is_training)
+                grouped_flow, learned_mask, d_p = conv_layer(images, is_training)
                 layer_instances.append((conv_layer, grouped_flow))
-                mask_instances.append((conv_layer, learned_mask))
+                mask_instances.append((d_p, learned_mask))
 
                 repeat_conv = repeat_conv - 1
 
@@ -182,9 +183,9 @@ class LearnedMTVGG16Net(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name=layer['name'])
-                    grouped_flow, learned_mask = conv_layer(grouped_flow, is_training)
+                    grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, is_training)
                     layer_instances.append((conv_layer, grouped_flow))
-                    mask_instances.append((conv_layer, learned_mask))
+                    mask_instances.append((d_p, learned_mask))
 
             elif layer_type == 'fc':
                 # not used if just doing average pooling before branching out

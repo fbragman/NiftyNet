@@ -883,7 +883,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  padding='SAME',
                  categorical=True,
                  use_hardcat=True,
-                 tau=1,
+                 tau=0.5,
                  with_bias=False,
                  with_bn=True,
                  with_gn=False,
@@ -995,6 +995,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                           initializer=dirichlet_init,
                                           dtype=tf.float32,
                                           trainable=True)
+            # For variables to be in range [0, 1]
+            dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
 
         if self.categorical:
             with tf.variable_scope('categorical_sampling'):
@@ -1044,7 +1046,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
             clustered_tensors = [task_1_tensor, shared_tensor, task_2_tensor]
 
-        return clustered_tensors, cat_mask_unstacked
+        return clustered_tensors, cat_mask_unstacked, dirichlet_p
 
 
 
