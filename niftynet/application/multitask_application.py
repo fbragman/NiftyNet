@@ -346,10 +346,10 @@ class MultiTaskApplication(BaseApplication):
 
             # collecting output variables
             self.output_collector_truck(outputs_collector,
+                                        data_loss,
                                         [data_loss_task_1, data_loss_task_2],
                                         net_out,
                                         data_dict)
-
 
         elif self.is_inference:
             # TODO implement multi-task inference for validation
@@ -368,9 +368,12 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             self.initialise_aggregator()
 
-    def output_collector_truck(self,outputs_collector, data_loss, data_losses, net_out, data_dict):
+    def output_collector_truck(self, outputs_collector, data_loss, data_losses, net_out, data_dict):
         """
         Function that defines what is output based on multi-task tasks
+        :param outputs_collector:
+        :param data_loss:
+        :param data_losses:
         :param net_out:
         :param data_dict:
         :return:
@@ -407,12 +410,12 @@ class MultiTaskApplication(BaseApplication):
         if self.multitask_param.task_1_type == 'classification':
             self.add_classification_statistics_(outputs_collector, net_out[0],
                                                 self.multitask_param.num_classes[0],
-                                                data_dict, 'task_1')
+                                                data_dict['output_1'], 'task_1')
 
         if self.multitask_param.task_2_type == 'classification':
             self.add_classification_statistics_(outputs_collector, net_out[1],
                                                 self.multitask_param.num_classes[1],
-                                                data_dict, 'task_2')
+                                                data_dict['output_2'], 'task_2')
 
     def interpret_output(self, batch_output):
         if self.is_inference:
@@ -433,7 +436,7 @@ class MultiTaskApplication(BaseApplication):
                                        outputs_collector,
                                        net_out,
                                        num_classes,
-                                       data_dict,
+                                       labels,
                                        opt_string):
         """ This method defines several monitoring metrics for classification
 
@@ -447,7 +450,6 @@ class MultiTaskApplication(BaseApplication):
             3) Recall - TP / (TP + FN)
 
          """
-        labels = tf.reshape(tf.cast(data_dict['label'], tf.int64), [-1])
         prediction = tf.reshape(tf.argmax(net_out, -1), [-1])
 
         if num_classes == 2:
