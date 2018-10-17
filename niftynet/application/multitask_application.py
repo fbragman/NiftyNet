@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
 
+import matplotlib
+import matplotlib.cm
+
+import numpy as np
+
 from niftynet.application.base_application import BaseApplication
 from niftynet.engine.application_factory import \
     ApplicationNetFactory, InitializerFactory, OptimiserFactory
@@ -269,7 +274,7 @@ class MultiTaskApplication(BaseApplication):
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
-            net_out = self.net(image, **net_args)
+            net_out, categoricals = self.net(image, **net_args)
 
             # TODO implement ability for arbitrary amount of tasks..
             net_out_task_1 = net_out[0]
@@ -351,6 +356,10 @@ class MultiTaskApplication(BaseApplication):
                                         net_out,
                                         data_dict)
 
+            # collect learned categorical parameters
+            self.output_collector_categoricals(outputs_collector,
+                                               categoricals)
+
         elif self.is_inference:
             # TODO implement multi-task inference for validation
             data_dict = switch_sampler(for_training=False)
@@ -367,6 +376,23 @@ class MultiTaskApplication(BaseApplication):
                 var=data_dict['image_location'], name='location',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             self.initialise_aggregator()
+
+    def output_collector_categoricals(self, outputs_collector, cats):
+        """
+        Output learned categoricals as images
+        :param cats:
+        :return:
+        """
+        for cat in cats:
+            # reshape cat to image format but put each kernel as a batch
+            var_name = cat.name
+            cat = cat[tf.newaxis, :, :, tf.newaxis]
+            cat = self.colorize(cat, cmap='binary')
+            outputs_collector.add_to_collection(
+                var=cat[tf.newaxis, :, :, :],
+                name=var_name,
+                average_over_devices=True, summary_type='image',
+                collection=TF_SUMMARIES)
 
     def output_collector_truck(self, outputs_collector, data_loss, data_losses, net_out, data_dict):
         """
@@ -407,15 +433,15 @@ class MultiTaskApplication(BaseApplication):
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
-        if self.multitask_param.task_1_type == 'classification':
-            self.add_classification_statistics_(outputs_collector, net_out[0],
-                                                self.multitask_param.num_classes[0],
-                                                data_dict['output_1'], 'task_1')
+        #if self.multitask_param.task_1_type == 'classification':
+        #    self.add_classification_statistics_(outputs_collector, net_out[0],
+        #                                        self.multitask_param.num_classes[0],
+        #                                        data_dict['output_1'], 'task_1')
 
-        if self.multitask_param.task_2_type == 'classification':
-            self.add_classification_statistics_(outputs_collector, net_out[1],
-                                                self.multitask_param.num_classes[1],
-                                                data_dict['output_2'], 'task_2')
+        #if self.multitask_param.task_2_type == 'classification':
+        #    self.add_classification_statistics_(outputs_collector, net_out[1],
+        #                                        self.multitask_param.num_classes[1],
+        #                                        data_dict['output_2'], 'task_2')
 
     def interpret_output(self, batch_output):
         if self.is_inference:
@@ -480,3 +506,47 @@ class MultiTaskApplication(BaseApplication):
                 name='confusion_matrix',
                 average_over_devices=True, summary_type='image',
                 collection=TF_SUMMARIES)
+
+    def colorize(self, value, vmin=None, vmax=None, cmap=None):
+        """
+        A utility function for TensorFlow that maps a grayscale image to a matplotlib
+        colormap for use with TensorBoard image summaries.
+        By default it will normalize the input value to the range 0..1 before mapping
+        to a grayscale colormap.
+        Arguments:
+          - value: 2D Tensor of shape [height, width] or 3D Tensor of shape
+            [height, width, 1].
+          - vmin: the minimum value of the range used for normalization.
+            (Default: value minimum)
+          - vmax: the maximum value of the range used for normalization.
+            (Default: value maximum)
+          - cmap: a valid cmap named for use with matplotlib's `get_cmap`.
+            (Default: 'gray')
+        Example usage:
+        ```
+        output = tf.random_uniform(shape=[256, 256, 1])
+        output_color = colorize(output, vmin=0.0, vmax=1.0, cmap='viridis')
+        tf.summary.image('output', output_color)
+        ```
+
+        Returns a 3D tensor of shape [height, width, 3].
+        """
+
+        # normalize
+        vmin = tf.reduce_min(value) if vmin is None else vmin
+        vmax = tf.reduce_max(value) if vmax is None else vmax
+        value = (value - vmin) / (vmax - vmin)  # vmin..vmax
+
+        # squeeze last dim if it exists
+        value = tf.squeeze(value)
+
+        # quantize
+        indices = tf.to_int32(tf.round(value * 255))
+
+        # gather
+        cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'gray')
+        colors = cm(np.arange(256))[:, :3]
+        colors = tf.constant(colors, dtype=tf.float32)
+        value = tf.gather(colors, indices)
+
+        return value
