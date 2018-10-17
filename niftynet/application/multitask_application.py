@@ -287,10 +287,10 @@ class MultiTaskApplication(BaseApplication):
             if task_1_type == 'regression':
                 loss_func_task_1 = RegLossFunction(loss_type=self.multitask_param.loss_task_1)
             elif task_1_type == 'segmentation':
-                loss_func_task_1 = SegLossFunction(n_class=self.multitask_param.num_classes[1],
+                loss_func_task_1 = SegLossFunction(n_class=self.multitask_param.num_classes[0],
                                                    loss_type=self.multitask_param.loss_task_1)
             elif task_1_type == 'classification':
-                loss_func_task_1 = ClassLossFunction(n_class=self.multitask_param.num_classes[1],
+                loss_func_task_1 = ClassLossFunction(n_class=self.multitask_param.num_classes[0],
                                                      loss_type=self.multitask_param.loss_task_1)
 
             if task_2_type == 'regression':
@@ -302,18 +302,30 @@ class MultiTaskApplication(BaseApplication):
                 loss_func_task_2 = ClassLossFunction(n_class=self.multitask_param.num_classes[1],
                                                      loss_type=self.multitask_param.loss_task_2)
 
-            crop_layer = CropLayer(border=self.regression_param.loss_border)
+            crop_layer = CropLayer(border=self.multitask_param.loss_border)
             weight_map = data_dict.get('weight', None)
             weight_map = None if weight_map is None else crop_layer(weight_map)
 
-            data_loss_task_1 = loss_func_task_1(
-                prediction=crop_layer(net_out_task_1),
-                ground_truth=crop_layer(data_dict['output_1']),
-                weight_map=weight_map)
-            data_loss_task_2 = loss_func_task_2(
-                prediction=crop_layer(net_out_task_2),
-                ground_truth=crop_layer(data_dict['output_2']),
-                weight_map=weight_map)
+            # determine whether cropping is needed (1x1 label image or actual dense prediction)
+            if len(net_out_task_1.shape) < 3:
+                data_loss_task_1 = loss_func_task_1(
+                    prediction=net_out_task_1,
+                    ground_truth=data_dict['output_1'])
+            else:
+                data_loss_task_1 = loss_func_task_1(
+                    prediction=crop_layer(net_out_task_1),
+                    ground_truth=crop_layer(data_dict['output_1']),
+                    weight_map=weight_map)
+
+            if len(net_out_task_2.shape) < 3:
+                data_loss_task_2 = loss_func_task_2(
+                    prediction=net_out_task_2,
+                    ground_truth=data_dict['output_2'])
+            else:
+                data_loss_task_2 = loss_func_task_2(
+                    prediction=crop_layer(net_out_task_2),
+                    ground_truth=crop_layer(data_dict['output_2']),
+                    weight_map=weight_map)
 
             # Vanilla multi-task loss
             # TODO implement ability to do uncertainty based mt learning from other branch
@@ -333,29 +345,11 @@ class MultiTaskApplication(BaseApplication):
             gradients_collector.add_to_collection([grads])
 
             # collecting output variables
-            outputs_collector.add_to_collection(
-                var=data_loss, name='multi_task_loss',
-                average_over_devices=False, collection=CONSOLE)
-            outputs_collector.add_to_collection(
-                var=data_loss, name='multi_task_loss',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES)
+            self.output_collector_truck(outputs_collector,
+                                        [data_loss_task_1, data_loss_task_2],
+                                        net_out,
+                                        data_dict)
 
-            outputs_collector.add_to_collection(
-                var=data_loss_task_1, name='task1_loss',
-                average_over_devices=False, collection=CONSOLE)
-            outputs_collector.add_to_collection(
-                var=data_loss_task_1, name='task1_loss',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES)
-
-            outputs_collector.add_to_collection(
-                var=data_loss_task_2, name='task2_loss',
-                average_over_devices=False, collection=CONSOLE)
-            outputs_collector.add_to_collection(
-                var=data_loss_task_2, name='task2_loss',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES)
 
         elif self.is_inference:
             # TODO implement multi-task inference for validation
@@ -374,6 +368,52 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             self.initialise_aggregator()
 
+    def output_collector_truck(self,outputs_collector, data_loss, data_losses, net_out, data_dict):
+        """
+        Function that defines what is output based on multi-task tasks
+        :param net_out:
+        :param data_dict:
+        :return:
+        """
+
+        # collecting output variables
+        outputs_collector.add_to_collection(
+            var=data_loss, name='multi_task_loss',
+            average_over_devices=False, collection=CONSOLE)
+        outputs_collector.add_to_collection(
+            var=data_loss, name='multi_task_loss',
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
+        task_1_string = 'task_1_' + self.multitask_param.task_1_type
+        task_2_string = 'task_2_' + self.multitask_param.task_2_type
+
+        outputs_collector.add_to_collection(
+            var=data_losses[0], name=task_1_string,
+            average_over_devices=False, collection=CONSOLE)
+        outputs_collector.add_to_collection(
+            var=data_losses[0], name=task_1_string,
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
+        outputs_collector.add_to_collection(
+            var=data_losses[1], name=task_2_string,
+            average_over_devices=False, collection=CONSOLE)
+        outputs_collector.add_to_collection(
+            var=data_losses[1], name=task_2_string,
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
+        if self.multitask_param.task_1_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[0],
+                                                self.multitask_param.num_classes[0],
+                                                data_dict, 'task_1')
+
+        if self.multitask_param.task_2_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[1],
+                                                self.multitask_param.num_classes[1],
+                                                data_dict, 'task_2')
+
     def interpret_output(self, batch_output):
         if self.is_inference:
             return self.output_decoder.decode_batch(
@@ -388,3 +428,53 @@ class MultiTaskApplication(BaseApplication):
 
     def add_inferred_output(self, data_param, task_param):
         return self.add_inferred_output_like(data_param, task_param, 'output')
+
+    def add_classification_statistics_(self,
+                                       outputs_collector,
+                                       net_out,
+                                       num_classes,
+                                       data_dict,
+                                       opt_string):
+        """ This method defines several monitoring metrics for classification
+
+            TP - true positives
+            TN - true negatives
+            FP - false positives
+            FN - false negatives
+
+            1) Accuracy - (TP + TN) / (TP + TN + FP + FN)
+            2) Precision - TP / (TP + FP)
+            3) Recall - TP / (TP + FN)
+
+         """
+        labels = tf.reshape(tf.cast(data_dict['label'], tf.int64), [-1])
+        prediction = tf.reshape(tf.argmax(net_out, -1), [-1])
+
+        if num_classes == 2:
+            acc = tf.metrics.accuracy(labels=labels, predictions=prediction)
+            pre = tf.metrics.precision(labels=labels, predictions=prediction)
+            rec = tf.metrics.recall(labels=labels, predictions=prediction)
+
+            outputs_collector.add_to_collection(
+                var=tf.to_float(acc), name=opt_string + '_accuracy',
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES
+            )
+            outputs_collector.add_to_collection(
+                var=tf.to_float(pre), name=opt_string + '_precision',
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES
+            )
+            outputs_collector.add_to_collection(
+                var=tf.to_float(rec), name=opt_string + '_recall',
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES
+            )
+        else:
+            conf_mat = tf.confusion_matrix(labels=labels, predictions=prediction, num_classes=num_classes)
+            conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
+            outputs_collector.add_to_collection(
+                var=conf_mat[tf.newaxis, :, :, tf.newaxis],
+                name='confusion_matrix',
+                average_over_devices=True, summary_type='image',
+                collection=TF_SUMMARIES)
