@@ -271,9 +271,14 @@ class MultiTaskApplication(BaseApplication):
             else:
                 data_dict = switch_sampler(for_training=True)
 
+            # current_iteration
+            current_iter = tf.placeholder(dtype=tf.float32)
+
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
-                        'keep_prob': self.net_param.keep_prob}
+                        'keep_prob': self.net_param.keep_prob,
+                        'current_iter': current_iter}
+
             net_out, categoricals = self.net(image, **net_args)
 
             # TODO implement ability for arbitrary amount of tasks..
@@ -360,6 +365,11 @@ class MultiTaskApplication(BaseApplication):
             self.output_collector_categoricals(outputs_collector,
                                                categoricals)
 
+            # collect current_iter for decay
+            outputs_collector.add_to_collection(
+                var=current_iter, name='current_iter',
+                average_over_devices=False, collection=NETWORK_OUTPUT)
+
         elif self.is_inference:
             # TODO implement multi-task inference for validation
             data_dict = switch_sampler(for_training=False)
@@ -433,15 +443,15 @@ class MultiTaskApplication(BaseApplication):
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
-        #if self.multitask_param.task_1_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[0],
-        #                                        self.multitask_param.num_classes[0],
-        #                                        data_dict['output_1'], 'task_1')
+        if self.multitask_param.task_1_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[0],
+                                                self.multitask_param.num_classes[0],
+                                                data_dict['output_1'], 'task_1')
 
-        #if self.multitask_param.task_2_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[1],
-        #                                        self.multitask_param.num_classes[1],
-        #                                        data_dict['output_2'], 'task_2')
+        if self.multitask_param.task_2_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[1],
+                                                self.multitask_param.num_classes[1],
+                                                data_dict['output_2'], 'task_2')
 
     def interpret_output(self, batch_output):
         if self.is_inference:
@@ -479,9 +489,9 @@ class MultiTaskApplication(BaseApplication):
         prediction = tf.reshape(tf.argmax(net_out, -1), [-1])
 
         if num_classes == 2:
-            acc = tf.metrics.accuracy(labels=labels, predictions=prediction)
-            pre = tf.metrics.precision(labels=labels, predictions=prediction)
-            rec = tf.metrics.recall(labels=labels, predictions=prediction)
+            acc, _ = tf.metrics.accuracy(labels=labels, predictions=prediction)
+            pre, _ = tf.metrics.precision(labels=labels, predictions=prediction)
+            rec, _ = tf.metrics.recall(labels=labels, predictions=prediction)
 
             outputs_collector.add_to_collection(
                 var=tf.to_float(acc), name=opt_string + '_accuracy',
