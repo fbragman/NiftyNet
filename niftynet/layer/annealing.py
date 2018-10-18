@@ -15,6 +15,7 @@ def gumbel_softmax_decay(current_iter, r):
 def exponential_decay(current_iter, initial_lr, k):
     """
     Exponential decay: alpha = alpha_0 * exp(-k*t)
+    Can be used for learning rate or other parameter dependent on iter
     :param current_iter:
     :param initial_lr:
     :param k:
