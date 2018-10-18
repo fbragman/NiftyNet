@@ -327,6 +327,46 @@ def __add_multitask_args(parser):
         help="[Training only] loss function for task 2 type_str",
         default='classification')
 
+    # Categorical sampling parameters
+    parser.add_argument(
+        "--use_hardcat",
+        metavar='TYPE_STR',
+        help="[Method option] hard parameter in GumbelSoftmax class, "
+             "if hard=True, hard stochastic in fwd pass with GS approx in bwd pass",
+        default='True')
+
+    parser.add_argument(
+        "--categorical",
+        metavar='TYPE_STR',
+        help="[Method option] if True, sample from a categorical over "
+             "the learned parameters p. If False, use the learned p as soft weights",
+        default='True')
+
+    # Merging of tensors per layer
+
+    # Gumbel-Softmax annealing parameters
+    parser.add_argument(
+        "--use_tau_annealing",
+        metavar='TYPE_STR',
+        help="[Method option] if True, annealing of temperature used for"
+             "Gumbel-Softmax approximation",
+        default='False')
+
+    parser.add_argument(
+        "--tau",
+        help="[Method option] Initial temperature or constant temperature for"
+             "Gumbel-Softmax approximation",
+        type=float,
+        default=1
+    )
+
+    parser.add_argument(
+        "--gs_anneal_r",
+        help="[Method option] GumbelSoftmax annealing hyper-parameter r",
+        type=float,
+        default=0.0001
+    )
+
     parser.add_argument(
         "--output_interp_order_task1",
         help='Output for task 1',

@@ -964,7 +964,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  gs_anneal_r=0.0001,
                  group_connection='mixed',
                  with_bias=False,
-                 with_bn=True,
+                 with_bn=False,
                  with_gn=False,
                  group_size=-1,
                  acti_func=None,
