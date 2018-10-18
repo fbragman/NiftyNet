@@ -343,6 +343,12 @@ def __add_multitask_args(parser):
         default='True')
 
     # Merging of tensors per layer
+    parser.add_argument(
+        "--group_connection",
+        metavar='TYPE_STR',
+        help="[Method option] sets structural options for multi-task",
+        default='mixed'
+    )
 
     # Gumbel-Softmax annealing parameters
     parser.add_argument(
