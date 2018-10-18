@@ -32,11 +32,9 @@ def default_b_initializer():
     return tf.constant_initializer(0.0)
 
 
-class ConvLayer(TrainableLayer):
+class MTConvLayer(TrainableLayer):
     """
-    This class defines a simple convolution with an optional bias term.
-    Please consider ``ConvolutionalLayer`` if batch_norm and activation
-    are also used.
+    ConvLayer to be used with LearnedCategoricalGroupConvolutionalLayer
     """
 
     def __init__(self,
@@ -51,7 +49,7 @@ class ConvLayer(TrainableLayer):
                  b_initializer=None,
                  b_regularizer=None,
                  name='conv'):
-        super(ConvLayer, self).__init__(name=name)
+        super(MTConvLayer, self).__init__(name=name)
 
         self.padding = look_up_operations(padding.upper(), SUPPORTED_PADDING)
         self.n_output_chns = int(n_output_chns)
@@ -148,6 +146,82 @@ class ConvLayer(TrainableLayer):
             output_tensor = tf.nn.bias_add(output_tensor,
                                            bias_term,
                                            name='add_bias')
+        return output_tensor
+
+
+class ConvLayer(TrainableLayer):
+    """
+    This class defines a simple convolution with an optional bias term.
+    Please consider ``ConvolutionalLayer`` if batch_norm and activation
+    are also used.
+    """
+
+    def __init__(self,
+                 n_output_chns,
+                 kernel_size=3,
+                 stride=1,
+                 dilation=1,
+                 padding='SAME',
+                 with_bias=False,
+                 w_initializer=None,
+                 w_regularizer=None,
+                 b_initializer=None,
+                 b_regularizer=None,
+                 name='conv'):
+        super(ConvLayer, self).__init__(name=name)
+
+        self.padding = look_up_operations(padding.upper(), SUPPORTED_PADDING)
+        self.n_output_chns = int(n_output_chns)
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.dilation = dilation
+        self.with_bias = with_bias
+
+        self.initializers = {
+            'w': w_initializer if w_initializer else default_w_initializer(),
+            'b': b_initializer if b_initializer else default_b_initializer()}
+
+        self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
+
+    def layer_op(self, input_tensor):
+
+        input_shape = input_tensor.shape.as_list()
+        n_input_chns = input_shape[-1]
+        spatial_rank = layer_util.infer_spatial_rank(input_tensor)
+
+        # initialize conv kernels/strides and then apply
+        w_full_size = layer_util.expand_spatial_params(
+            self.kernel_size, spatial_rank)
+        # expand kernel size to include number of features
+        w_full_size = w_full_size + (n_input_chns, self.n_output_chns)
+        full_stride = layer_util.expand_spatial_params(
+            self.stride, spatial_rank)
+        full_dilation = layer_util.expand_spatial_params(
+            self.dilation, spatial_rank)
+
+        conv_kernel = tf.get_variable(
+            'w', shape=w_full_size,
+            initializer=self.initializers['w'],
+            regularizer=self.regularizers['w'])
+
+        output_tensor = tf.nn.convolution(input=input_tensor,
+                                          filter=conv_kernel,
+                                          strides=full_stride,
+                                          dilation_rate=full_dilation,
+                                          padding=self.padding,
+                                          name='conv')
+        if not self.with_bias:
+            return output_tensor
+
+        # adding the bias term
+        bias_term = tf.get_variable(
+            'b', shape=self.n_output_chns,
+            initializer=self.initializers['b'],
+            regularizer=self.regularizers['b'])
+
+        output_tensor = tf.nn.bias_add(output_tensor,
+                                       bias_term,
+                                       name='add_bias')
         return output_tensor
 
 
@@ -969,18 +1043,17 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         if keep_prob is not None:
             dropout_layer = ActiLayer(func='dropout', name='dropout_')
 
-        conv_layer = ConvLayer(n_output_chns=self.n_output_chns,
-                               kernel_size=self.kernel_size,
-                               stride=self.stride,
-                               dilation=self.dilation,
-                               padding=self.padding,
-                               with_bias=self.with_bias,
-                               w_initializer=self.initializers['w'],
-                               w_regularizer=self.regularizers['w'],
-                               b_initializer=self.initializers['b'],
-                               b_regularizer=self.regularizers['b'],
-                               name='group_conv_')
-
+        conv_layer = MTConvLayer(n_output_chns=self.n_output_chns,
+                                 kernel_size=self.kernel_size,
+                                 stride=self.stride,
+                                 dilation=self.dilation,
+                                 padding=self.padding,
+                                 with_bias=self.with_bias,
+                                 w_initializer=self.initializers['w'],
+                                 w_regularizer=self.regularizers['w'],
+                                 b_initializer=self.initializers['b'],
+                                 b_regularizer=self.regularizers['b'],
+                                 name='group_conv_')
 
         def activation(output_tensor, bn_layer):
             if self.with_bn and bn_layer is not None:
