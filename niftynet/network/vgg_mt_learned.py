@@ -138,17 +138,6 @@ class LearnedMTVGG16Net(BaseNet):
 
                 repeat_conv = repeat_conv - 1
 
-            # last layer
-            #if layer_iter == len(self.layers):
-            #    fc_layer = FullyConnectedLayer(
-            #        n_output_chns=layer['n_features'],
-            #        w_initializer=self.initializers['w'],
-            #        w_regularizer=self.regularizers['w'],
-            #    )
-            #    flow = fc_layer(flow)
-            #    layer_instances.append((fc_layer, flow))
-            #    continue
-
             # all other
             if layer_type == 'maxpool':
                 downsample_layer = DownSampleLayer(
