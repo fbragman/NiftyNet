@@ -962,6 +962,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  current_iter=None,
                  use_annealing=False,
                  gs_anneal_r=0.0001,
+                 group_connection='mixed',
                  with_bias=False,
                  with_bn=True,
                  with_gn=False,
@@ -985,6 +986,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.categorical = categorical
         self.use_hardcat = use_hardcat
+
+        self.group_connection = group_connection
 
         self.tau = tau
         self.current_iter = current_iter
@@ -1120,18 +1123,40 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                     output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask, task_it), group_bn))
                 task_it += 1
 
-        # task 1 tensor
-        with tf.name_scope('clustered_tensor_merge'):
-            # task 1 tensor
-            task_1_tensor = output_layers[0] + output_layers[1]
+        if self.group_connection == 'mixed':
+            with tf.name_scope('clustered_tensor_merge'):
+                # task 1 tensor
+                task_1_tensor = output_layers[0] + output_layers[1]
 
-            # task 2 tensor
-            task_2_tensor = output_layers[2] + output_layers[1]
+                # task 2 tensor
+                task_2_tensor = output_layers[2] + output_layers[1]
 
-            # shared tensor
-            shared_tensor = output_layers[1]
+                # shared tensor
+                shared_tensor = output_layers[1]
 
-            clustered_tensors = [task_1_tensor, shared_tensor, task_2_tensor]
+        elif self.group_connection == 'separate':
+            with tf.name_scope('separate_tensor_merge'):
+                # task 1 tensor
+                task_1_tensor = output_layers[0]
+
+                # task 2 tensor
+                task_2_tensor = output_layers[2]
+
+                # shared tensor
+                shared_tensor = output_layers[1]
+
+        elif self.group_connection == 'dense':
+            with tf.name_scope('dense_tensor_merge'):
+                # task 1 tensor
+                task_1_tensor = output_layers[0] + output_layers[1] + output_layers[2]
+
+                # task 2 tensor
+                task_2_tensor = task_1_tensor
+
+                # shared tensor
+                shared_tensor = task_1_tensor
+
+        clustered_tensors = [task_1_tensor, shared_tensor, task_2_tensor]
 
         return clustered_tensors, cat_mask_unstacked, dirichlet_p
 
