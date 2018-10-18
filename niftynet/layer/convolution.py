@@ -11,6 +11,7 @@ from niftynet.layer.bn import BNLayer
 from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
 from niftynet.layer.probability import Dirichlet, GumbelSoftmax
+from niftynet.layer.annealing import gumbel_softmax_decay
 from niftynet.layer import group_ops
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
@@ -883,7 +884,10 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  padding='SAME',
                  categorical=True,
                  use_hardcat=True,
-                 tau=0.5,
+                 tau=1,
+                 current_iter=None,
+                 use_annealing=False,
+                 gs_anneal_r=0.0001,
                  with_bias=False,
                  with_bn=True,
                  with_gn=False,
@@ -900,14 +904,18 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.acti_func = acti_func
         self.with_bn = with_bn
+        self.with_gn = with_gn
         self.group_size = group_size
         self.preactivation = preactivation
         self.layer_name = '{}'.format(name)
 
         self.categorical = categorical
         self.use_hardcat = use_hardcat
+
         self.tau = tau
-        self.with_gn = with_gn
+        self.current_iter = current_iter
+        self.use_annealing = use_annealing
+        self.gs_anneal_r = gs_anneal_r
 
         if self.with_bn and group_size > 0:
             raise ValueError('only choose either batchnorm or groupnorm')
@@ -985,6 +993,12 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         with tf.variable_scope('categorical_p'):
 
+            # Temperature annealing or constant temperature
+            if self.use_annealing:
+                tau = gumbel_softmax_decay(current_iter=self.current_iter, r=self.gs_anneal_r)
+            else:
+                tau = self.tau
+
             # Number of kernels
             N = self.n_output_chns
 
@@ -1002,7 +1016,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             with tf.variable_scope('categorical_sampling'):
 
                 # Create object for categorical
-                cat_dist = GumbelSoftmax(dirichlet_p, self.tau)
+                cat_dist = GumbelSoftmax(dirichlet_p, tau)
 
                 # Sample from mask - [N by 3] either one-hot or soft cat
                 cat_mask = cat_dist(hard=self.use_hardcat)
