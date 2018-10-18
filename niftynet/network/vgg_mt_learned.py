@@ -68,10 +68,13 @@ class LearnedMTVGG16Net(BaseNet):
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
 
+        # current_iteration
+        current_iter = unused_kwargs['current_iter']
+
         # main network graph
         with tf.variable_scope('vgg_body'):
             grouped_flow, layer_instances, cats = \
-                self.create_main_network_graph(images, is_training)
+                self.create_main_network_graph(images, is_training, current_iter)
 
         # add task 1 output
         task1_layer = self.task1_layers
@@ -102,7 +105,7 @@ class LearnedMTVGG16Net(BaseNet):
 
         return layer_instances[layer_id][1]
 
-    def create_main_network_graph(self, images, is_training):
+    def create_main_network_graph(self, images, is_training, current_iter=None):
 
         layer_instances = []
         mask_instances = []
@@ -124,7 +127,7 @@ class LearnedMTVGG16Net(BaseNet):
                     kernel_size=layer['kernel_size'],
                     categorical=True,
                     use_hardcat=True,
-                    tau=2,
+                    current_iter=current_iter,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
