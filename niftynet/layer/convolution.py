@@ -1097,6 +1097,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 # Sample from mask - [N by 3] either one-hot or soft cat
                 cat_mask = cat_dist(hard=self.use_hardcat)
                 cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+        else:
+            with tf.variable_scope('soft_weight_masks'):
+                raise NotImplementedError
 
         # Convolution on clustered kernels using sampled mask
 
