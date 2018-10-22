@@ -330,17 +330,19 @@ def __add_multitask_args(parser):
     # Categorical sampling parameters
     parser.add_argument(
         "--use_hardcat",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str2boolean,
         help="[Method option] hard parameter in GumbelSoftmax class, "
              "if hard=True, hard stochastic in fwd pass with GS approx in bwd pass",
-        default='True')
+        default=True)
 
     parser.add_argument(
         "--categorical",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str2boolean,
         help="[Method option] if True, sample from a categorical over "
              "the learned parameters p. If False, use the learned p as soft weights",
-        default='True')
+        default=True)
 
     # Merging of tensors per layer
     parser.add_argument(
@@ -353,10 +355,11 @@ def __add_multitask_args(parser):
     # Gumbel-Softmax annealing parameters
     parser.add_argument(
         "--use_tau_annealing",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str2boolean,
         help="[Method option] if True, annealing of temperature used for"
              "Gumbel-Softmax approximation",
-        default='False')
+        default=False)
 
     parser.add_argument(
         "--tau",
