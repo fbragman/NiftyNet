@@ -354,7 +354,6 @@ def __add_multitask_args(parser):
         metavar='',
         type=str,
         help="[Method option] sets structural options for multi-task",
-        default='mixed'
     )
 
     # Gumbel-Softmax annealing parameters

@@ -271,47 +271,38 @@ class MultiTaskApplication(BaseApplication):
             else:
                 data_dict = switch_sampler(for_training=True)
 
-            # current_iteration
+            # Current_iteration
             current_iter = tf.placeholder(dtype=tf.float32)
+            # Argument for different architecture in learned multi-task groupings
+            group_connection = self.multitask_param.group_connection
 
             image = tf.cast(data_dict['image'], tf.float32)
+            # Optional arguments
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob,
-                        'current_iter': current_iter}
+                        'current_iter': current_iter,
+                        'group_connection': group_connection}
 
+            # Forward pass, categoricals will be 'None' if vanilla networks are used
             net_out, categoricals = self.net(image, **net_args)
-
-            # TODO implement ability for arbitrary amount of tasks..
             net_out_task_1 = net_out[0]
             net_out_task_2 = net_out[1]
 
+            # Get task strings
             task_1_type = self.multitask_param.task_1_type
             task_2_type = self.multitask_param.task_2_type
 
+            # Create optimiser object
             with tf.name_scope('Optimiser'):
                 optimiser_class = OptimiserFactory.create(
                     name=self.action_param.optimiser)
                 self.optimiser = optimiser_class.get_instance(
                     learning_rate=self.action_param.lr)
 
-            if task_1_type == 'regression':
-                loss_func_task_1 = RegLossFunction(loss_type=self.multitask_param.loss_task_1)
-            elif task_1_type == 'segmentation':
-                loss_func_task_1 = SegLossFunction(n_class=self.multitask_param.num_classes[0],
-                                                   loss_type=self.multitask_param.loss_task_1)
-            elif task_1_type == 'classification':
-                loss_func_task_1 = ClassLossFunction(n_class=self.multitask_param.num_classes[0],
-                                                     loss_type=self.multitask_param.loss_task_1)
+            # Get loss function objects
+            loss_func_task_1, loss_func_task_2 = self.get_loss_functions(task_1_type, task_2_type)
 
-            if task_2_type == 'regression':
-                loss_func_task_2 = RegLossFunction(loss_type=self.multitask_param.loss_task_2)
-            elif task_2_type == 'segmentation':
-                loss_func_task_2 = SegLossFunction(n_class=self.multitask_param.num_classes[1],
-                                                   loss_type=self.multitask_param.loss_task_2)
-            elif task_2_type == 'classification':
-                loss_func_task_2 = ClassLossFunction(n_class=self.multitask_param.num_classes[1],
-                                                     loss_type=self.multitask_param.loss_task_2)
-
+            # Add cropping layer if defined
             crop_layer = CropLayer(border=self.multitask_param.loss_border)
             weight_map = data_dict.get('weight', None)
             weight_map = None if weight_map is None else crop_layer(weight_map)
@@ -387,6 +378,32 @@ class MultiTaskApplication(BaseApplication):
                 var=data_dict['image_location'], name='location',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             self.initialise_aggregator()
+
+    def get_loss_functions(self, task_1_type, task_2_type):
+        """
+        Output loss function objects for tasks
+        :return:
+        """
+
+        if task_1_type == 'regression':
+            loss_func_task_1 = RegLossFunction(loss_type=self.multitask_param.loss_task_1)
+        elif task_1_type == 'segmentation':
+            loss_func_task_1 = SegLossFunction(n_class=self.multitask_param.num_classes[0],
+                                               loss_type=self.multitask_param.loss_task_1)
+        elif task_1_type == 'classification':
+            loss_func_task_1 = ClassLossFunction(n_class=self.multitask_param.num_classes[0],
+                                                 loss_type=self.multitask_param.loss_task_1)
+
+        if task_2_type == 'regression':
+            loss_func_task_2 = RegLossFunction(loss_type=self.multitask_param.loss_task_2)
+        elif task_2_type == 'segmentation':
+            loss_func_task_2 = SegLossFunction(n_class=self.multitask_param.num_classes[1],
+                                               loss_type=self.multitask_param.loss_task_2)
+        elif task_2_type == 'classification':
+            loss_func_task_2 = ClassLossFunction(n_class=self.multitask_param.num_classes[1],
+                                                 loss_type=self.multitask_param.loss_task_2)
+
+        return loss_func_task_1, loss_func_task_2
 
     def output_collector_categoricals(self, outputs_collector, cats):
         """

@@ -31,6 +31,10 @@ class LearnedMTVGG16Net(BaseNet):
     2) Soft weighting from x ~ Gumbel-Softmax(p)
     3) Hard stochastic weighting from x ~ Gumbel-Softmax(p)
 
+    Option also for type of network structure in group_connection parameter
+    1) 'seperate' - no diagonal connections between shared and task-specific
+    2) 'mixed' - diagonal connections between shared and task-specific
+
     """
 
     def __init__(self,
@@ -71,10 +75,13 @@ class LearnedMTVGG16Net(BaseNet):
         # current_iteration
         current_iter = unused_kwargs['current_iter']
 
+        # type of connection
+        group_connection = unused_kwargs['group_connection']
+
         # main network graph
         with tf.variable_scope('vgg_body'):
             grouped_flow, layer_instances, cats = \
-                self.create_main_network_graph(images, is_training, current_iter)
+                self.create_main_network_graph(images, is_training, current_iter, group_connection)
 
         # add task 1 output
         task1_layer = self.task1_layers
@@ -105,10 +112,12 @@ class LearnedMTVGG16Net(BaseNet):
 
         return layer_instances[layer_id][1]
 
-    def create_main_network_graph(self, images, is_training, current_iter=None):
+    def create_main_network_graph(self, images, is_training, current_iter=None, group_connection=None):
 
         layer_instances = []
         mask_instances = []
+
+        # Gumbel-Softmax temperature annealing here... [placeholder for that]
 
         for layer_iter, layer in enumerate(self.layers):
 
@@ -127,6 +136,8 @@ class LearnedMTVGG16Net(BaseNet):
                     kernel_size=layer['kernel_size'],
                     categorical=True,
                     use_hardcat=True,
+                    group_connection=group_connection,
+                    tau=0.5,
                     current_iter=current_iter,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
@@ -170,6 +181,7 @@ class LearnedMTVGG16Net(BaseNet):
                         kernel_size=layer['kernel_size'],
                         categorical=True,
                         use_hardcat=True,
+                        group_connection=group_connection,
                         tau=0.5,
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
