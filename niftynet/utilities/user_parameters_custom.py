@@ -305,25 +305,29 @@ def __add_multitask_args(parser):
 
     parser.add_argument(
         "--loss_task_1",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str,
         help="[Training only] loss function for task 1 type_str",
         default='RMSE')
 
     parser.add_argument(
         "--loss_task_2",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str,
         help="[Training only] loss function for task 2 type_str",
         default='CrossEntropy')
 
     parser.add_argument(
         "--task_1_type",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str,
         help="[Training only] loss function for task 1 type_str",
         default='regression')
 
     parser.add_argument(
         "--task_2_type",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str,
         help="[Training only] loss function for task 2 type_str",
         default='classification')
 
@@ -347,7 +351,8 @@ def __add_multitask_args(parser):
     # Merging of tensors per layer
     parser.add_argument(
         "--group_connection",
-        metavar='TYPE_STR',
+        metavar='',
+        type=str,
         help="[Method option] sets structural options for multi-task",
         default='mixed'
     )
