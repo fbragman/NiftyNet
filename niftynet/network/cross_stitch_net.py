@@ -11,18 +11,20 @@ from niftynet.layer.fully_connected import FullyConnectedLayer
 import tensorflow as tf
 
 
-def apply_cross_stitch(input1, input2):
-    """Cross-stich operation
-    It takes two tensors input1, input2 of the same size,
+def apply_cross_stitch(
+        input1: tf.Tensor,
+        input2: tf.Tensor,
+):
+    """Cross-stich operation.
+
+    It takes two tensors input1, input2 of common size [batch, w, h, c],
     compute the linear combinations of the two with two different sets
     of coefficients kernel-wise, and output two tensors i.e.
 
-    output1 = a*input1 + b*input2
-    output2 = c*input1 + d*input2
+    output1 = a * input1 + b * input2
+    output2 = c * input1 + d * input2
 
-    where a, b, c, d are tensors of size [channels].
-
-    Retrieved from https://bit.ly/2PTnsOo
+    where a, b, c, d are tensors of size [1, 1, 1, channels].
 
     Args:
         input1: Tensor of size [batch, width, height, channels]
@@ -32,44 +34,48 @@ def apply_cross_stitch(input1, input2):
         output1: Tensor of the same size as input1
         output2: Tensor of the same size as input2
     """
-    input1_reshaped = tf.contrib.layers.flatten(input1)
-    input2_reshaped = tf.contrib.layers.flatten(input2)
-    input = tf.concat((input1_reshaped, input2_reshaped), axis=1)
 
-    # initialize with identity matrix
-    cross_stitch = tf.get_variable(
-        "cross_stitch",
-        shape=(input.shape[1], input.shape[1]),
-        dtype=tf.float32,
-        collections=['cross_stitches', tf.GraphKeys.GLOBAL_VARIABLES],
-        initializer=tf.initializers.identity(),
-    )
-    output = tf.matmul(input, cross_stitch)
+    assert input1.shape.as_list() == input2.shape.as_list()
 
-    # need to call .value to convert Dimension objects to normal value
-    input1_shape = list(
-        -1 if s.value is None else s.value for s in input1.shape,
+    # Stack them in the last dimension: => [batch, w, h, c, 2]
+    input = tf.stack([input1, input2], axis=-1)
+
+    # initialize channelwise mixing coeffecients of the cross-stich module
+    # note the broadcastable shape: [1, 1, 1, c, 2]
+    # TODO (Ryu): consider defining mix_coefficients as probabilities
+    # e.g.
+    # rho = tf.Variable(w_init, name='rho')
+    # rho = tf.nn.softplus(rho)
+    # mix_coefficients = tf.divide(
+    #     rho, tf.reduce_sum(rho, axis=-1, keepdims=True),
+    # )
+
+    w_init = tf.constant(
+        0.5, shape=[1, 1, 1, input1.shape[-1], 2], dtype=tf.float32,
     )
-    input2_shape = list(
-        -1 if s.value is None else s.value for s in input2.shape,
-    )
-    output1 = tf.reshape(
-        output[:, :input1_reshaped.shape[1]], shape=input1_shape,
-    )
-    output2 = tf.reshape(
-        output[:, input1_reshaped.shape[1]:], shape=input2_shape),
+    mix_coefficients_task1 = tf.Variable(w_init, name="cross_stich_task1")
+    mix_coefficients_task2 = tf.Variable(w_init, name="cross_stich_task2")
+
+    # Compute the channelwise linear combination of input1 and input2
+    output1 = tf.reduce_sum(input * mix_coefficients_task1, axis=-1)
+    output2 = tf.reduce_sum(input * mix_coefficients_task2, axis=-1)
+    assert output1.shape.as_list() == input1.shape.as_list()
+    assert output2.shape.as_list() == input1.shape.as_list()
 
     return output1, output2
 
 
-class DisjointBitaskVGG16Net(BaseNet):
-    """ Two disjoint networks. Reference (https://arxiv.org/abs/1604.03539)
+class CrossStichVGG16Net(BaseNet):
+    """Cross-stitch Network.
 
-    Sharing done by:
-        1) split just before last FC unit that is fed into loss function
-        2) we use global average pooling instead of multiple FC units
-            e.g. fc (1x1) --> l2 loss (age regression)
-                 fc (1x2) --> binary softmax cross entropy (gender - 0/1)
+    Two copies of the same architecture are defined for two tasks with
+    feature sharing based on cross-stich modules in every layer. The mixing
+    coefficients of cross-stich modules are currently defined as trainable
+    parameters for each channel of the incoming feature maps, with no
+    restrictions e.g. can be negative, and larger than 1.
+
+    Note: we use global average pooling before the final FC layer.
+    Reference: https://arxiv.org/abs/1604.03539
     """
     def __init__(self,
                  num_classes,
@@ -80,7 +86,7 @@ class DisjointBitaskVGG16Net(BaseNet):
                  acti_func='relu',
                  name='MT1_VGG16Net'):
 
-        super(DisjointBitaskVGG16Net, self).__init__(
+        super(CrossStichVGG16Net, self).__init__(
             num_classes=num_classes,
             w_initializer=w_initializer,
             w_regularizer=w_regularizer,
@@ -90,61 +96,45 @@ class DisjointBitaskVGG16Net(BaseNet):
             name=name)
 
         self.task1_body_layers = [
-            {'name': 'layer_1_1', 'n_features': 32 * 2, 'kernel_size': 3,
-             'repeat': 2},
-            {'name': 'maxpool_1_1'},
-            {'name': 'layer_1_2', 'n_features': 64 * 2, 'kernel_size': 3,
-             'repeat': 2},
-            {'name': 'maxpool_1_2'},
-            {'name': 'layer_3', 'n_features': 128 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'maxpool_1_3'},
-            {'name': 'layer_4', 'n_features': 256 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'maxpool_1_4'},
-            {'name': 'layer_1_5', 'n_features': 256 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'gap_1'},
+            {'name': 'task_1_layer_1', 'n_features': 32 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_1_maxpool_1'},
+            {'name': 'task_1_layer_2', 'n_features': 64 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_1_maxpool_2'},
+            {'name': 'task_1_layer_3', 'n_features': 128 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_maxpool_3'},
+            {'name': 'task_1_layer_4', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_maxpool_4'},
+            {'name': 'task_1_layer_5', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_gap'},
         ]
-
         self.task2_body_layers = [
-            {'name': 'layer_2_1', 'n_features': 32 * 2, 'kernel_size': 3,
-             'repeat': 2},
-            {'name': 'maxpool_2_1'},
-            {'name': 'layer_2_2', 'n_features': 64 * 2, 'kernel_size': 3,
-             'repeat': 2},
-            {'name': 'maxpool_2_2'},
-            {'name': 'layer_3', 'n_features': 128 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'maxpool_2_3'},
-            {'name': 'layer_2_4', 'n_features': 256 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'maxpool_2_4'},
-            {'name': 'layer_2_5', 'n_features': 256 * 2, 'kernel_size': 3,
-             'repeat': 3},
-            {'name': 'gap_2'},
+            {'name': 'task_2_layer_1', 'n_features': 32 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_2_maxpool_1'},
+            {'name': 'task_2_layer_2', 'n_features': 64 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_2_maxpool_2'},
+            {'name': 'task_2_layer_3', 'n_features': 128 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_maxpool_3'},
+            {'name': 'task_2_layer_4', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_maxpool_4'},
+            {'name': 'task_2_layer_5', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_gap'},
         ]
+        self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
+        self.task2_layers = {'name': 'task_2_out', 'n_features': self.num_classes[1]}
 
-        self.task1_layers = {
-            'name': 'task_1_out', 'n_features': self.num_classes[0],
-        }
-        self.task2_layers = {
-            'name': 'task_2_out', 'n_features': self.num_classes[1],
-        }
-
-    def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
-
-        # define separate trunks for both tasks
-        with tf.variable_scope('vgg_body_1'):
-            flow_1, layer_instances = self.create_network_graph(
-                self.task1_body_layers, images, is_training,
+    def layer_op(
+            self,
+            images,
+            enable_cross_stich=True,
+            is_training=True,
+            layer_id=-1,
+            **unused_kwargs
+    ):
+        # get feature maps for task 1 and task 2
+        with tf.variable_scope('vgg_body'):
+            flow_1, flow_2, layer_instances = self.create_main_network_graph(
+                images, enable_cross_stich, is_training,
             )
-
-        with tf.variable_scope('vgg_body_2'):
-            flow_2, layer_instances_2 = self.create_network_graph(
-                self.task2_body_layers, images, is_training,
-            )
-            layer_instances.extend(layer_instances_2)
 
         # add task 1 output
         task1_layer = self.task1_layers
@@ -169,164 +159,6 @@ class DisjointBitaskVGG16Net(BaseNet):
             layer_instances.append((fc_layer, task2_out))
 
         if is_training:
-            # This is here because the main application also returns
-            # categoricals for more complex networks.
-            categoricals = None
-            self._print(layer_instances)
-            return [task1_out, task2_out], categoricals
-
-        return layer_instances[layer_id][1]
-
-    def create_network_graph(self, layers, images, is_training):
-
-        layer_instances = []
-        for layer_iter, layer in enumerate(layers):
-
-            # Get layer type
-            layer_type = self._get_layer_type(layer['name'])
-
-            if 'repeat' in layer:
-                repeat_conv = layer['repeat']
-            else:
-                repeat_conv = 1
-
-            # first layer
-            if layer_iter == 0:
-                conv_layer = ConvolutionalLayer(
-                    n_output_chns=layer['n_features'],
-                    kernel_size=layer['kernel_size'],
-                    acti_func=self.acti_func,
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                    name=layer['name'])
-                flow = conv_layer(images, is_training)
-                layer_instances.append((conv_layer, flow))
-                repeat_conv = repeat_conv - 1
-
-            # all other
-            if layer_type == 'maxpool':
-                downsample_layer = DownSampleLayer(
-                    kernel_size=2,
-                    func='MAX',
-                    stride=2)
-                flow = downsample_layer(flow)
-                layer_instances.append((downsample_layer, flow))
-
-            elif layer_type == 'gap':
-                with tf.name_scope('global_average_pool'):
-                    flow = tf.reduce_mean(flow, axis=[1, 2])
-                    # dummy layer
-                    dmy = DownSampleLayer(func='AVG')
-                    layer_instances.append((dmy, flow))
-
-            elif layer_type == 'layer':
-
-                for _ in range(repeat_conv):
-                    conv_layer = ConvolutionalLayer(
-                        n_output_chns=layer['n_features'],
-                        kernel_size=layer['kernel_size'],
-                        acti_func=self.acti_func,
-                        w_initializer=self.initializers['w'],
-                        w_regularizer=self.regularizers['w'],
-                        name=layer['name'])
-                    flow = conv_layer(flow, is_training)
-                    layer_instances.append((conv_layer, flow))
-
-            elif layer_type == 'fc':
-
-                fc_layer = FullyConnectedLayer(
-                    n_output_chns=layer['n_features'],
-                    acti_func=self.acti_func,
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                )
-                flow = fc_layer(flow)
-                layer_instances.append((fc_layer, flow))
-
-        return flow, layer_instances
-
-    @staticmethod
-    def _print(list_of_layers):
-        for (op, _) in list_of_layers:
-            print(op)
-
-    @staticmethod
-    def _get_layer_type(layer_name):
-        return layer_name.split('_')[0]
-
-
-class CrossStichVGG16Net(BaseNet):
-    """ Cross-stitch Network. Reference (https://arxiv.org/abs/1604.03539)
-
-    Sharing done by:
-        1) split just before last FC unit that is fed into loss function
-        2) we use global average pooling instead of multiple FC units
-            e.g. fc (1x1) --> l2 loss (age regression)
-                 fc (1x2) --> binary softmax cross entropy (gender - 0/1)
-    """
-
-    def __init__(self,
-                 num_classes,
-                 w_initializer=None,
-                 w_regularizer=None,
-                 b_initializer=None,
-                 b_regularizer=None,
-                 acti_func='relu',
-                 name='MT1_VGG16Net'):
-
-        super(CrossStichVGG16Net, self).__init__(
-            num_classes=num_classes,
-            w_initializer=w_initializer,
-            w_regularizer=w_regularizer,
-            b_initializer=b_initializer,
-            b_regularizer=b_regularizer,
-            acti_func=acti_func,
-            name=name)
-
-        self.layers = [
-            {'name': 'layer_1', 'n_features': 64*2, 'kernel_size': 3, 'repeat': 2},
-            {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': 128*2, 'kernel_size': 3, 'repeat': 2},
-            {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': 256*2, 'kernel_size': 3, 'repeat': 3},
-            {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
-            {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
-            {'name': 'gap'}]
-
-        self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
-        self.task2_layers = {'name': 'task_2_out', 'n_features': self.num_classes[1]}
-
-    def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
-
-        # main network graph
-        with tf.variable_scope('vgg_body'):
-            flow, layer_instances = self.create_main_network_graph(images, is_training)
-
-        # add task 1 output
-        task1_layer = self.task1_layers
-        with tf.variable_scope('task_1_fc'):
-            fc_layer = FullyConnectedLayer(
-                n_output_chns=task1_layer['n_features'],
-                w_initializer=self.initializers['w'],
-                w_regularizer=self.regularizers['w'],
-            )
-            task1_out = fc_layer(flow)
-            layer_instances.append((fc_layer, task1_out))
-
-        # add task 2 output
-        task2_layer = self.task2_layers
-        with tf.variable_scope('task_2_fc'):
-            fc_layer = FullyConnectedLayer(
-                n_output_chns=task2_layer['n_features'],
-                w_initializer=self.initializers['w'],
-                w_regularizer=self.regularizers['w'],
-            )
-            task2_out = fc_layer(flow)
-            layer_instances.append((fc_layer, task2_out))
-
-        if is_training:
             # This is here because the main application also returns categoricals
             # for more complex networks..
             categoricals = None
@@ -335,73 +167,134 @@ class CrossStichVGG16Net(BaseNet):
 
         return layer_instances[layer_id][1]
 
-    def create_main_network_graph(self, images, is_training):
+    def create_main_network_graph(
+            self,
+            images,
+            enable_cross_stich,
+            is_training,
+    ):
 
         layer_instances = []
-        for layer_iter, layer in enumerate(self.layers):
-
+        for layer_iter, (layer_1, layer_2) in enumerate(
+                zip(self.task1_body_layers, self.task2_body_layers),
+        ):
             # Get layer type
-            layer_type = self._get_layer_type(layer['name'])
+            layer_type_1 = self._get_layer_type(layer_1['name'])
+            layer_type_2 = self._get_layer_type(layer_2['name'])
+            assert layer_type_1 == layer_type_2
 
-            if 'repeat' in layer:
-                repeat_conv = layer['repeat']
+            if 'repeat' in layer_1:
+                repeat_conv = layer_1['repeat']
             else:
                 repeat_conv = 1
 
             # first layer
             if layer_iter == 0:
-                conv_layer = ConvolutionalLayer(
-                    n_output_chns=layer['n_features'],
-                    kernel_size=layer['kernel_size'],
+                assert layer_1['n_features'] == layer_2['n_features']
+                assert layer_1['kernel_size'] == layer_2['kernel_size']
+                conv_layer_1 = ConvolutionalLayer(
+                    n_output_chns=layer_1['n_features'],
+                    kernel_size=layer_1['kernel_size'],
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
-                    name=layer['name'])
-                flow = conv_layer(images, is_training)
-                layer_instances.append((conv_layer, flow))
-                repeat_conv = repeat_conv - 1
+                    name=layer_1['name'])
+
+                conv_layer_2 = ConvolutionalLayer(
+                    n_output_chns=layer_2['n_features'],
+                    kernel_size=layer_2['kernel_size'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name=layer_1['name'])
+
+                flow_1 = conv_layer_1(images, is_training)
+                flow_2 = conv_layer_2(images, is_training)
+
+                layer_instances.extend(
+                    [(conv_layer_1, flow_1), (conv_layer_2, flow_2)],
+                )
+                repeat_conv -= 1
+
+                if enable_cross_stich:
+                    with tf.variable_scope("cross_stitch_1"):
+                        flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
 
             # all other
-            if layer_type == 'maxpool':
+            if layer_type_1 == 'maxpool':
                 downsample_layer = DownSampleLayer(
                     kernel_size=2,
                     func='MAX',
                     stride=2)
-                flow = downsample_layer(flow)
-                layer_instances.append((downsample_layer, flow))
-
-            elif layer_type == 'gap':
+                flow_1 = downsample_layer(flow_1)
+                flow_2 = downsample_layer(flow_2)
+                layer_instances.extend(
+                    [(downsample_layer, flow_1), (downsample_layer, flow_2)],
+                )
+            elif layer_type_1 == 'gap':
                 with tf.name_scope('global_average_pool'):
-                    flow = tf.reduce_mean(flow, axis=[1, 2])
+                    flow_1 = tf.reduce_mean(flow_1, axis=[1, 2])
+                    flow_2 = tf.reduce_mean(flow_2, axis=[1, 2])
                     # dummy layer
-                    dmy = DownSampleLayer(func='AVG')
-                    layer_instances.append((dmy, flow))
+                    dmy_1 = DownSampleLayer(func='AVG')
+                    dmy_2 = DownSampleLayer(func='AVG')
+                    layer_instances.extend([(dmy_1, flow_1), (dmy_2, flow_2)])
 
-            elif layer_type == 'layer':
+            elif layer_type_1 == 'layer':
+                assert layer_1['n_features'] == layer_2['n_features']
+                assert layer_1['kernel_size'] == layer_2['kernel_size']
 
-                for _ in range(repeat_conv):
-                    conv_layer = ConvolutionalLayer(
-                        n_output_chns=layer['n_features'],
-                        kernel_size=layer['kernel_size'],
+                for idx in range(repeat_conv):
+                    conv_layer_1 = ConvolutionalLayer(
+                        n_output_chns=layer_1['n_features'],
+                        kernel_size=layer_1['kernel_size'],
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
-                        name=layer['name'])
-                    flow = conv_layer(flow, is_training)
-                    layer_instances.append((conv_layer, flow))
+                        name=layer_1['name'],
+                    )
+                    conv_layer_2 = ConvolutionalLayer(
+                        n_output_chns=layer_2['n_features'],
+                        kernel_size=layer_2['kernel_size'],
+                        acti_func=self.acti_func,
+                        w_initializer=self.initializers['w'],
+                        w_regularizer=self.regularizers['w'],
+                        name=layer_2['name'],
+                    )
+                    flow_1 = conv_layer_1(flow_1, is_training)
+                    flow_2 = conv_layer_2(flow_2, is_training)
 
-            elif layer_type == 'fc':
+                    layer_instances.extend(
+                        [(conv_layer_1, flow_1), (conv_layer_2, flow_2)],
+                    )
+                    if enable_cross_stich:
+                        with tf.variable_scope(
+                                "cross_stitch_{}_{}".format(layer_iter, idx),
+                        ):
+                            flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
 
-                fc_layer = FullyConnectedLayer(
-                    n_output_chns=layer['n_features'],
+            elif layer_type_1 == 'fc':
+                fc_layer_1 = FullyConnectedLayer(
+                    n_output_chns=layer_1['n_features'],
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                 )
-                flow = fc_layer(flow)
-                layer_instances.append((fc_layer, flow))
+                flow_1 = fc_layer_1(flow_1)
 
-        return flow, layer_instances
+                fc_layer_2 = FullyConnectedLayer(
+                    n_output_chns=layer_2['n_features'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                )
+                flow_2 = fc_layer_2(flow_2)
+
+                layer_instances.extend(
+                    [(fc_layer_1, flow_1), (fc_layer_2, flow_2)],
+                )
+
+        return flow_1, flow_2, layer_instances
 
     @staticmethod
     def _print(list_of_layers):
@@ -410,4 +303,4 @@ class CrossStichVGG16Net(BaseNet):
 
     @staticmethod
     def _get_layer_type(layer_name):
-        return layer_name.split('_')[0]
+        return layer_name.split('_')[2]
