@@ -82,8 +82,11 @@ class MT1_VGG16Net(BaseNet):
             layer_instances.append((fc_layer, task2_out))
 
         if is_training:
+            # This is here because the main application also returns categoricals
+            # for more complex networks..
+            categoricals = None
             self._print(layer_instances)
-            return [task1_out, task2_out]
+            return [task1_out, task2_out], categoricals
 
         return layer_instances[layer_id][1]
 
