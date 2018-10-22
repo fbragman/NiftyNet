@@ -53,7 +53,7 @@ class VGG16Net(BaseNet):
             {'name': 'layer_4', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_4'},
             {'name': 'layer_5', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
-            {'name': 'avgpool'},
+            {'name': 'gap'},
             {'name': 'fc', 'n_features': self.num_classes}]
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
@@ -102,7 +102,7 @@ class VGG16Net(BaseNet):
                 flow = downsample_layer(flow)
                 layer_instances.append((downsample_layer, flow))
 
-            elif layer_type == 'avgpool':
+            elif layer_type == 'gap':
                 # Global average across features
                 with tf.name_scope('global_average_pool'):
                     flow = tf.reduce_mean(flow, axis=[1, 2])
