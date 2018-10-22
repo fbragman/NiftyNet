@@ -362,8 +362,9 @@ class MultiTaskApplication(BaseApplication):
                                         data_dict)
 
             # collect learned categorical parameters
-            self.output_collector_categoricals(outputs_collector,
-                                               categoricals)
+            if categoricals is not None:
+                self.output_collector_categoricals(outputs_collector,
+                                                   categoricals)
 
             # collect current_iter for decay
             outputs_collector.add_to_collection(
@@ -443,15 +444,15 @@ class MultiTaskApplication(BaseApplication):
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
-        if self.multitask_param.task_1_type == 'classification':
-            self.add_classification_statistics_(outputs_collector, net_out[0],
-                                                self.multitask_param.num_classes[0],
-                                                data_dict['output_1'], 'task_1')
+        #if self.multitask_param.task_1_type == 'classification':
+        #    self.add_classification_statistics_(outputs_collector, net_out[0],
+        #                                        self.multitask_param.num_classes[0],
+        #                                        data_dict['output_1'], 'task_1')
 
-        if self.multitask_param.task_2_type == 'classification':
-            self.add_classification_statistics_(outputs_collector, net_out[1],
-                                                self.multitask_param.num_classes[1],
-                                                data_dict['output_2'], 'task_2')
+        #if self.multitask_param.task_2_type == 'classification':
+        #    self.add_classification_statistics_(outputs_collector, net_out[1],
+        #                                        self.multitask_param.num_classes[1],
+        #                                        data_dict['output_2'], 'task_2')
 
     def interpret_output(self, batch_output):
         if self.is_inference:
@@ -494,17 +495,17 @@ class MultiTaskApplication(BaseApplication):
             rec, _ = tf.metrics.recall(labels=labels, predictions=prediction)
 
             outputs_collector.add_to_collection(
-                var=tf.to_float(acc), name=opt_string + '_accuracy',
+                var=acc, name=opt_string + '_accuracy',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES
             )
             outputs_collector.add_to_collection(
-                var=tf.to_float(pre), name=opt_string + '_precision',
+                var=pre, name=opt_string + '_precision',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES
             )
             outputs_collector.add_to_collection(
-                var=tf.to_float(rec), name=opt_string + '_recall',
+                var=rec, name=opt_string + '_recall',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES
             )
