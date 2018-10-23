@@ -38,8 +38,14 @@ class GridSamplesAggregator(ImageWindowsAggregator):
         self.postfix = postfix
 
     def decode_batch(self, window, location):
+        # edited to allow multiple outputs, window is now a list of outputs
         n_samples = location.shape[0]
+        location_init = np.copy(window)
+
         window, location = self.crop_batch(window, location, self.window_border)
+        for w in window:
+            window[w], _ = self.crop_batch(window[w], location_init, self.window_border)
+            location_init = np.copy(location)
 
         for batch_id in range(n_samples):
             image_id, x_start, y_start, z_start, x_end, y_end, z_end = \
@@ -50,13 +56,16 @@ class GridSamplesAggregator(ImageWindowsAggregator):
                 self._save_current_image()
                 if self._is_stopping_signal(location[batch_id]):
                     return False
-                self.image_out = self._initialise_empty_image(
-                    image_id=image_id,
-                    n_channels=window.shape[-1],
-                    dtype=window.dtype)
-            self.image_out[x_start:x_end,
-                           y_start:y_end,
-                           z_start:z_end, ...] = window[batch_id, ...]
+                self.image_out = {}
+                for w in window:
+                    self.image_out = self._initialise_empty_image(
+                        image_id=image_id,
+                        n_channels=window.shape[w].shape[-1],
+                        dtype=window[w].dtype)
+            for w in window:
+                self.image_out[w][x_start:x_end,
+                                  y_start:y_end,
+                                  z_start:z_end, ...] = window[w][batch_id, ...]
         return True
 
     def _initialise_empty_image(self, image_id, n_channels, dtype=np.float):
