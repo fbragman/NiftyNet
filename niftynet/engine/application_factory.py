@@ -73,6 +73,7 @@ SUPPORTED_NETWORK = {
     # multitask
     "vgg_learned_mt": 'niftynet.network.vgg_mt_learned.LearnedMTVGG16Net',
     "vgg_mt_baseline_1": 'niftynet.network.vgg_mt.MT1_VGG16Net',
+    "vgg_cross_stitch": 'niftynet.network.cross_stitch_net.CrossStichVGG16Net',
 
     # autoencoder
     "vae": 'niftynet.network.vae.VAE'

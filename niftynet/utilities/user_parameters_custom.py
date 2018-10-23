@@ -388,6 +388,14 @@ def __add_multitask_args(parser):
         type=int,
         default=0)
 
+    parser.add_argument(
+        "--enable_cross_stich",
+        metavar='',
+        type=str2boolean,
+        help="[Method option] if True, perform cross-stich at every layer"
+             "only compatible with network type vgg_cross_stitch",
+        default=True)
+
     from niftynet.application.multitask_application import SUPPORTED_INPUT
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser
