@@ -116,6 +116,8 @@ class ImageWindowsAggregator(object):
                 'not supported by this aggregator',
                 spatial_shape, cropped_shape)
             raise ValueError
+
+        one_voxel_image_flag = None
         if n_spatial == 1:
             window = window[:,
                             left[0]:(left[0] + cropped_shape[0]),
@@ -132,11 +134,13 @@ class ImageWindowsAggregator(object):
                             left[2]:(left[2] + cropped_shape[2]),
                             ...]
         else:
-            tf.logging.fatal(
-                'unknown output format: shape %s'
-                ' spatial dims are: %s', window_shape, spatial_shape)
-            raise NotImplementedError
-        return window, location
+            window = window
+            one_voxel_image_flag = True
+            #tf.logging.fatal(
+            #    'unknown output format: shape %s'
+            #    ' spatial dims are: %s', window_shape, spatial_shape)
+            #raise NotImplementedError
+        return window, location, one_voxel_image_flag
 
     def log_inferred(self, subject_name, filename):
         """
