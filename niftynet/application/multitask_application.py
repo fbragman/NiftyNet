@@ -273,15 +273,13 @@ class MultiTaskApplication(BaseApplication):
 
             # Current_iteration
             current_iter = tf.placeholder(dtype=tf.float32)
-            # Argument for different architecture in learned multi-task groupings
-            group_connection = self.multitask_param.group_connection
 
             image = tf.cast(data_dict['image'], tf.float32)
             # Optional arguments
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
-                        'group_connection': group_connection}
+                        'group_connection': self.multitask_param.group_connection}
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
             net_out, categoricals = self.net(image, **net_args)
@@ -363,21 +361,87 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=False, collection=NETWORK_OUTPUT)
 
         elif self.is_inference:
-            # TODO implement multi-task inference for validation
+
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
-            net_args = {'is_training': self.is_training,
-                        'keep_prob': self.net_param.keep_prob}
-            net_out = self.net(image, **net_args)
-            net_out = PostProcessingLayer('IDENTITY')(net_out)
 
+            net_args = {'is_training': self.is_training,
+                        'keep_prob': self.net_param.keep_prob,
+                        'group_connection': self.multitask_param.group_connection}
+
+            net_out, categoricals = self.net(image, **net_args)
+            net_out_task_1 = net_out[0]
+            net_out_task_2 = net_out[1]
+            task_1_type = self.multitask_param.task_1_type
+            task_2_type = self.multitask_param.task_2_type
+
+            if task_1_type == 'regression':
+                net_out_task_1 = PostProcessingLayer('IDENTITY')(net_out_task_1)
+            elif task_1_type == 'classification':
+                output_prob = self.multitask_param.output_prob_task_1
+                num_classes = self.multitask_param.num_classes[0]
+                post_process_layer = self.inference_prob_output(output_prob, num_classes)
+                net_out_task_1 = post_process_layer(net_out_task_1)
+            elif task_1_type == 'segmentation':
+                output_prob = self.multitask_param.output_prob_task_1
+                num_classes = self.multitask_param.num_classes[0]
+                post_process_layer = self.inference_prob_output(output_prob, num_classes)
+                net_out_task_1 = post_process_layer(net_out_task_1)
+
+            if task_2_type == 'regression':
+                net_out_task_2 = PostProcessingLayer('IDENTITY')(net_out_task_2)
+            elif task_2_type == 'classification':
+                output_prob = self.multitask_param.output_prob_task_2
+                num_classes = self.multitask_param.num_classes[1]
+                post_process_layer = self.inference_prob_output(output_prob, num_classes)
+                net_out_task_2 = post_process_layer(net_out_task_2)
+            elif task_2_type == 'segmentation':
+                output_prob = self.multitask_param.output_prob_task_2
+                num_classes = self.multitask_param.num_classes[1]
+                post_process_layer = self.inference_prob_output(output_prob, num_classes)
+                net_out_task_2 = post_process_layer(net_out_task_2)
+
+            #TODO add output for learned categorical grouping
+            if categoricals is not None:
+                self.categorical_output()
+
+            # Collections
             outputs_collector.add_to_collection(
-                var=net_out, name='window',
+                var=net_out_task_1, name='task_' + task_1_type,
+                average_over_devices=False, collection=NETWORK_OUTPUT)
+            outputs_collector.add_to_collection(
+                var=net_out_task_2, name='task_' + task_2_type,
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
+
             self.initialise_aggregator()
+
+    def categorical_output(self):
+        """
+        Output of categoricals...
+        :return:
+        """
+        raise NotImplementedError
+
+    def inference_prob_output(self, output_prob, num_classes):
+        """
+        Function for determinining how to output classification output
+        :param output_prob:
+        :param num_classes:
+        :return:
+        """
+        if output_prob and num_classes > 1:
+            post_process_layer = PostProcessingLayer(
+                'SOFTMAX', num_classes=num_classes)
+        elif not output_prob and num_classes > 1:
+            post_process_layer = PostProcessingLayer(
+                'ARGMAX', num_classes=num_classes)
+        else:
+            post_process_layer = PostProcessingLayer(
+                'IDENTITY', num_classes=num_classes)
+        return post_process_layer
 
     def get_loss_functions(self, task_1_type, task_2_type):
         """
