@@ -392,6 +392,20 @@ def __add_multitask_args(parser):
         type=int,
         default=0)
 
+    parser.add_argument(
+        "--output_prob_task_1",
+        metavar='',
+        help="[Inference only] whether to output multi-class probabilities for task 1",
+        type=str2boolean,
+        default=False)
+
+    parser.add_argument(
+        "--output_prob_task_2",
+        metavar='',
+        help="[Inference only] whether to output multi-class probabilities for task 2",
+        type=str2boolean,
+        default=False)
+
     from niftynet.application.multitask_application import SUPPORTED_INPUT
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser
