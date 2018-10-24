@@ -1126,7 +1126,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                     output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask, task_it), group_bn))
                 task_it += 1
 
-        if self.group_connection == 'mixed':
+        if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
                 # task 1 tensor
                 task_1_tensor = output_layers[0] + output_layers[1]
