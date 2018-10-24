@@ -1,4 +1,4 @@
-import numpy as np
+import tensorflow as tf
 
 
 def gumbel_softmax_decay(current_iter, r, max_temp, min_temp):
@@ -11,7 +11,7 @@ def gumbel_softmax_decay(current_iter, r, max_temp, min_temp):
     :param min_temp: minimum tau
     :return: temperature
     """
-    return np.maximum(min_temp, max_temp * np.exp(-r * current_iter))
+    return tf.math.maximum(min_temp, max_temp * tf.math.maximum(-r * current_iter))
 
 
 def exponential_decay(current_iter, initial_lr, k):
@@ -23,4 +23,4 @@ def exponential_decay(current_iter, initial_lr, k):
     :param k:
     :return:
     """
-    return initial_lr * np.exp(-k * current_iter)
+    return initial_lr * tf.math.maximum(-k * current_iter)
