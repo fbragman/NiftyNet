@@ -88,7 +88,8 @@ class MT1_VGG16Net(BaseNet):
             self._print(layer_instances)
             return [task1_out, task2_out], categoricals
 
-        return layer_instances[layer_id][1]
+        categoricals = None
+        return [task1_out, task2_out], categoricals
 
     def create_main_network_graph(self, images, is_training):
 
