@@ -537,8 +537,11 @@ class MultiTaskApplication(BaseApplication):
 
     def interpret_output(self, batch_output):
         if self.is_inference:
+            tasks = list(batch_output.keys())[0:-1]
             return self.output_decoder.decode_batch(
-                batch_output['window'], batch_output['location'])
+                {tasks[0]: batch_output[tasks[0]],
+                 tasks[1]: batch_output[tasks[1]]},
+                batch_output['location'])
         return True
 
     def initialise_evaluator(self, eval_param):
