@@ -10,7 +10,7 @@ from __future__ import unicode_literals
 from niftynet.utilities.user_parameters_helper import add_input_name_args
 from niftynet.utilities.user_parameters_helper import int_array
 from niftynet.utilities.user_parameters_helper import str2boolean
-
+from niftynet.utilities.user_parameters_helper import float_array
 
 #######################################################################
 # To support a CUSTOM_SECTION in config file:
@@ -381,16 +381,18 @@ def __add_multitask_args(parser):
     )
 
     parser.add_argument(
-        "--output_interp_order_task1",
-        help='Output for task 1',
-        type=int,
-        default=3)
+        "--learn_categorical",
+        metavar='',
+        help="[Method option] Learn or use fixed categorical",
+        type=str2boolean,
+        default=True
+    )
 
     parser.add_argument(
-        "--output_interp_order_task2",
-        help='Output for task 2',
-        type=int,
-        default=0)
+        "--init_categorical",
+        help="Set initial categorical probabilities e.g. (1/3, 1/3, 1/3)",
+        type=float_array,
+        default=(1/3, 1/3, 1/3))
 
     parser.add_argument(
         "--output_prob_task_1",
