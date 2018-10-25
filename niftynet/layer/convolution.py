@@ -10,8 +10,7 @@ from niftynet.layer.base_layer import TrainableLayer
 from niftynet.layer.bn import BNLayer
 from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
-from niftynet.layer.probability import Dirichlet, GumbelSoftmax
-from niftynet.layer.annealing import gumbel_softmax_decay
+from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical
 from niftynet.layer import group_ops
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
@@ -958,10 +957,10 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  padding='SAME',
                  categorical=True,
                  use_hardcat=True,
-                 tau=1,
-                 current_iter=None,
+                 learn_cat=True,
+                 init_cat=(1/3, 1/3, 1/3),
+                 constant_grouping=False,
                  use_annealing=False,
-                 gs_anneal_r=0.0001,
                  group_connection='mixed',
                  with_bias=False,
                  with_bn=False,
@@ -986,13 +985,13 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.categorical = categorical
         self.use_hardcat = use_hardcat
+        self.learn_cat = learn_cat
+        self.init_cat = init_cat
+        self.constant_grouping = constant_grouping
 
         self.group_connection = group_connection
 
-        self.tau = tau
-        self.current_iter = current_iter
         self.use_annealing = use_annealing
-        self.gs_anneal_r = gs_anneal_r
 
         if self.with_bn and group_size > 0:
             raise ValueError('only choose either batchnorm or groupnorm')
@@ -1022,7 +1021,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, is_training=None, keep_prob=None):
+    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None):
 
         if self.with_bn:
             if is_training is None:
@@ -1069,44 +1068,54 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         with tf.variable_scope('categorical_p'):
 
-            # Temperature annealing or constant temperature
-            if self.use_annealing:
-                tau = gumbel_softmax_decay(current_iter=self.current_iter, r=self.gs_anneal_r)
-            else:
-                tau = self.tau
-
             # Number of kernels
             N = self.n_output_chns
 
             # Dirichlet probabilities / parameters of Categorical
-            # Initialised with uniform prob e.g. p = 1/g where g=3 for 2 task problem
-            dirichlet_init = (1/3) * np.ones((N, 3), dtype=np.float32)
-            dirichlet_p = tf.get_variable('cat_prior',
-                                          initializer=dirichlet_init,
-                                          dtype=tf.float32,
-                                          trainable=True)
-            # For variables to be in range [0, 1]
-            dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+            # Default: (1/3, 1/3, 1/3)
+            dirichlet_init_user = np.float32(np.asarray(self.init_cat))
+            dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
 
-        if self.categorical:
-            with tf.variable_scope('categorical_sampling'):
+            # Check if using constant grouping or learning
+            if self.learn_cat:
+                dirichlet_p = tf.get_variable('cat_prior',
+                                              initializer=dirichlet_init,
+                                              dtype=tf.float32,
+                                              trainable=True)
+                # For variables to be in range [0, 1]
+                dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+            else:
+                dirichlet_p = tf.constant(dirichlet_init)
 
-                # Create object for categorical
-                cat_dist = GumbelSoftmax(dirichlet_p, tau)
+        if self.constant_grouping:
+            # create constant grouping / no sampling at each iteration
+            # mixture defined by init_cat
 
-                # Sample from mask - [N by 3] either one-hot or soft cat
-                cat_mask = cat_dist(hard=self.use_hardcat)
-                cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+            constant_mask = HardCategorical(dirichlet_init_user, N)
+            cat_mask = constant_mask()
+            cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
         else:
-            with tf.variable_scope('soft_weight_masks'):
-                raise NotImplementedError
+            if self.categorical:
+                # sample x|p ~ Cat(p)
+
+                # Run if sampling from a categorical
+                # Can be if learning p (learn_cat=True) or constant p (learn_cat=False)
+                with tf.variable_scope('categorical_sampling'):
+                    # Create object for categorical
+                    cat_dist = GumbelSoftmax(dirichlet_p, tau)
+
+                    # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
+                    cat_mask = cat_dist(hard=self.use_hardcat)
+                    cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+            else:
+                # soft weighting using p
+                with tf.variable_scope('soft_weight_masks'):
+                    raise NotImplementedError
 
         # Convolution on clustered kernels using sampled mask
 
         # Check whether input_tensor is list or not
-        # If list: then we are at layer > 1
-        # If not: then we are at layer 1
-
+        # if list: layer > 1, if not: layer == 1
         output_layers = []
 
         if type(input_tensor) is not list:
@@ -1126,6 +1135,25 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                     output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask, task_it), group_bn))
                 task_it += 1
 
+        # apply batch norm on sparse tensors before combination
+        bn_1 = BNLayer(regularizer=self.regularizers['w'],
+                       moving_decay=self.moving_decay,
+                       eps=self.eps,
+                       name='bn_task_1')
+
+        bn_2 = BNLayer(regularizer=self.regularizers['w'],
+                       moving_decay=self.moving_decay,
+                       eps=self.eps,
+                       name='bn_shared')
+
+        bn_3 = BNLayer(regularizer=self.regularizers['w'],
+                       moving_decay=self.moving_decay,
+                       eps=self.eps,
+                       name='bn_task_2')
+
+        output_layers[0] = bn_1(output_layers[0], is_training)
+        output_layers[1] = bn_2(output_layers[1], is_training)
+        output_layers[2] = bn_3(output_layers[2], is_training)
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
                 # task 1 tensor
