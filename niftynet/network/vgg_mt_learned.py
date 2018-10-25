@@ -8,6 +8,7 @@ from niftynet.layer.convolution import LearnedCategoricalGroupConvolutionalLayer
 from niftynet.layer.downsample import DownSampleLayer
 from niftynet.network.base_net import BaseNet
 from niftynet.layer.fully_connected import FullyConnectedLayer
+from niftynet.layer.annealing import np_gumbel_softmax_decay, gumbel_softmax_decay
 
 import tensorflow as tf
 
@@ -44,7 +45,7 @@ class LearnedMTVGG16Net(BaseNet):
                  b_initializer=None,
                  b_regularizer=None,
                  acti_func='relu',
-                 name='MT1_VGG16Net'):
+                 name='LearnedMTVGG16Net'):
 
         super(LearnedMTVGG16Net, self).__init__(
             num_classes=num_classes,
@@ -56,15 +57,15 @@ class LearnedMTVGG16Net(BaseNet):
             name=name)
 
         self.layers = [
-            {'name': 'layer_1', 'n_features': 64*2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_1', 'n_features': 64, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': 128*2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_2', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': 256*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_3', 'n_features': 256, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_4', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_5', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
             {'name': 'gap'}]
 
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
@@ -74,14 +75,22 @@ class LearnedMTVGG16Net(BaseNet):
 
         # current_iteration
         current_iter = unused_kwargs['current_iter']
-
         # type of connection
         group_connection = unused_kwargs['group_connection']
+        # gumbel-softmax options
+        max_tau = unused_kwargs['initial_tau']
+        gs_anneal_r = unused_kwargs['gs_anneal_r']
+        use_annealing = unused_kwargs['use_tau_annealing']
 
         # main network graph
         with tf.variable_scope('vgg_body'):
             grouped_flow, layer_instances, cats = \
-                self.create_main_network_graph(images, is_training, current_iter, group_connection)
+                self.create_main_network_graph(images, is_training, current_iter,
+                                               group_connection, use_annealing, gs_anneal_r, max_tau)
+
+        if group_connection == 'separate':
+            grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
+            grouped_flow[2] = grouped_flow[2] + grouped_flow[1]
 
         # add task 1 output
         task1_layer = self.task1_layers
@@ -112,12 +121,33 @@ class LearnedMTVGG16Net(BaseNet):
 
         return layer_instances[layer_id][1]
 
-    def create_main_network_graph(self, images, is_training, current_iter=None, group_connection=None):
+    def create_main_network_graph(self, images, is_training, current_iter=None,
+                                  group_connection=None, use_annealing=False, gs_anneal_r=1e-5,
+                                  tau_ini=1):
 
         layer_instances = []
         mask_instances = []
 
-        # Gumbel-Softmax temperature annealing here... [placeholder for that]
+        # Gumbel-Softmax temperature annealing
+        if use_annealing:
+            # update after every N iterations
+            #N = 1000
+            #condition_1 = tf.cast((current_iter % N) == 1, tf.bool)
+            #condition_2 = tf.cast((current_iter % N) != 1, tf.bool)
+
+            #def identity_fun(x): return x
+            #tau = tf.case({condition_1: lambda: gumbel_softmax_decay(current_iter, gs_anneal_r,
+            #                                                         max_temp=tau_ini, min_temp=0.5),
+            #               condition_2: lambda: identity_fun(tau)})
+
+            #tau = tf.cond(condition, lambda: gumbel_softmax_decay(current_iter, gs_anneal_r,
+            #                                                      max_temp=tau, min_temp=0.5),
+            #              lambda: tau)
+
+            # anneal every iter
+            tau = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=tau_ini, min_temp=0.5)
+        else:
+            tau = tau_ini
 
         for layer_iter, layer in enumerate(self.layers):
 
@@ -137,13 +167,11 @@ class LearnedMTVGG16Net(BaseNet):
                     categorical=True,
                     use_hardcat=True,
                     group_connection=group_connection,
-                    tau=0.5,
-                    current_iter=current_iter,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                     name=layer['name'])
-                grouped_flow, learned_mask, d_p = conv_layer(images, is_training)
+                grouped_flow, learned_mask, d_p = conv_layer(images, tau, is_training)
                 layer_instances.append((conv_layer, grouped_flow))
                 mask_instances.append((d_p, learned_mask))
 
@@ -182,12 +210,11 @@ class LearnedMTVGG16Net(BaseNet):
                         categorical=True,
                         use_hardcat=True,
                         group_connection=group_connection,
-                        tau=0.5,
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name=layer['name'])
-                    grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, is_training)
+                    grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau, is_training)
                     layer_instances.append((conv_layer, grouped_flow))
                     mask_instances.append((d_p, learned_mask))
 

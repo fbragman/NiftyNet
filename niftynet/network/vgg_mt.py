@@ -39,15 +39,15 @@ class MT1_VGG16Net(BaseNet):
             name=name)
 
         self.layers = [
-            {'name': 'layer_1', 'n_features': 64*2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_1', 'n_features': 64, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': 128*2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_2', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': 256*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_3', 'n_features': 256, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_4', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': 512*2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_5', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
             {'name': 'gap'}]
 
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
