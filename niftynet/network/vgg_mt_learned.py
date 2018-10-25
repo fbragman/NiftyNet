@@ -3,12 +3,11 @@ from __future__ import absolute_import, print_function
 
 from six.moves import range
 
-from niftynet.layer.convolution import ConvolutionalLayer
 from niftynet.layer.convolution import LearnedCategoricalGroupConvolutionalLayer
 from niftynet.layer.downsample import DownSampleLayer
 from niftynet.network.base_net import BaseNet
 from niftynet.layer.fully_connected import FullyConnectedLayer
-from niftynet.layer.annealing import np_gumbel_softmax_decay, gumbel_softmax_decay
+from niftynet.layer.annealing import gumbel_softmax_decay
 
 import tensorflow as tf
 
@@ -77,6 +76,11 @@ class LearnedMTVGG16Net(BaseNet):
         current_iter = unused_kwargs['current_iter']
         # type of connection
         group_connection = unused_kwargs['group_connection']
+        # categorical learning options
+        init_cat = unused_kwargs['init_categorical']
+        use_hardcat = unused_kwargs['use_hardcat']
+        learn_cat = unused_kwargs['learn_categorical']
+        constant_grouping = unused_kwargs['constant_grouping']
         # gumbel-softmax options
         max_tau = unused_kwargs['initial_tau']
         gs_anneal_r = unused_kwargs['gs_anneal_r']
@@ -86,7 +90,10 @@ class LearnedMTVGG16Net(BaseNet):
         with tf.variable_scope('vgg_body'):
             grouped_flow, layer_instances, cats = \
                 self.create_main_network_graph(images, is_training, current_iter,
-                                               group_connection, use_annealing, gs_anneal_r, max_tau)
+                                               group_connection, use_annealing,
+                                               gs_anneal_r, max_tau,
+                                               use_hardcat, learn_cat,
+                                               init_cat, constant_grouping)
 
         if group_connection == 'separate':
             grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
@@ -123,27 +130,15 @@ class LearnedMTVGG16Net(BaseNet):
 
     def create_main_network_graph(self, images, is_training, current_iter=None,
                                   group_connection=None, use_annealing=False, gs_anneal_r=1e-5,
-                                  tau_ini=1):
+                                  tau_ini=1, use_hardcat=True,
+                                  learn_cat=True, init_cat=(1/3, 1/3, 1/3),
+                                  constant_grouping=False):
 
         layer_instances = []
         mask_instances = []
 
         # Gumbel-Softmax temperature annealing
         if use_annealing:
-            # update after every N iterations
-            #N = 1000
-            #condition_1 = tf.cast((current_iter % N) == 1, tf.bool)
-            #condition_2 = tf.cast((current_iter % N) != 1, tf.bool)
-
-            #def identity_fun(x): return x
-            #tau = tf.case({condition_1: lambda: gumbel_softmax_decay(current_iter, gs_anneal_r,
-            #                                                         max_temp=tau_ini, min_temp=0.5),
-            #               condition_2: lambda: identity_fun(tau)})
-
-            #tau = tf.cond(condition, lambda: gumbel_softmax_decay(current_iter, gs_anneal_r,
-            #                                                      max_temp=tau, min_temp=0.5),
-            #              lambda: tau)
-
             # anneal every iter
             tau = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=tau_ini, min_temp=0.5)
         else:
@@ -165,7 +160,10 @@ class LearnedMTVGG16Net(BaseNet):
                     n_output_chns=layer['n_features'],
                     kernel_size=layer['kernel_size'],
                     categorical=True,
-                    use_hardcat=True,
+                    use_hardcat=use_hardcat,
+                    learn_cat=learn_cat,
+                    init_cat=init_cat,
+                    constant_grouping=constant_grouping,
                     group_connection=group_connection,
                     acti_func=self.acti_func,
                     w_initializer=self.initializers['w'],
@@ -208,7 +206,10 @@ class LearnedMTVGG16Net(BaseNet):
                         n_output_chns=layer['n_features'],
                         kernel_size=layer['kernel_size'],
                         categorical=True,
-                        use_hardcat=True,
+                        use_hardcat=use_hardcat,
+                        learn_cat=learn_cat,
+                        init_cat=init_cat,
+                        constant_grouping=constant_grouping,
                         group_connection=group_connection,
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
