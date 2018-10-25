@@ -394,6 +394,15 @@ def __add_multitask_args(parser):
         type=float_array,
         default=(1/3, 1/3, 1/3))
 
+    # Allow constant grouping
+    # [1,0,0;1,0,0;0,1,0;0,0,1] automatically set based on init_categorical
+    parser.add_argument(
+        "--constant_grouping",
+        metavar='',
+        help="[Method option] Learn or use fixed categorical",
+        type=str2boolean,
+        default=False)
+
     parser.add_argument(
         "--output_prob_task_1",
         metavar='',
