@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import numpy as np
 
 class Dirichlet(object):
 
@@ -44,6 +44,37 @@ class Dirichlet(object):
         if self.batch_size == 1:
             alpha = alpha[tf.newaxis, :]
         return alpha
+
+
+class HardCategorical(object):
+
+    def __init__(self, proportions, N):
+
+        self.p = proportions
+        self.N = N
+
+    def __call__(self):
+        """
+        Create one-hot mask for N rows based on proportions defined by probabilities
+        :return:
+        """
+        num = self.p * self.N
+        num = [int(x) for x in num]
+        num_sum = np.sum(num)
+        if num_sum != self.N:
+            # difference in expected number
+            delta = self.N - num_sum
+            # biggest proportions
+            idx = np.argmax(self.p)
+            num[idx] = num[idx] + delta
+
+        onehot = np.zeros((self.N, 3), dtype=np.float32)
+        onehot[:num[0], 0] = 1
+        onehot[num[0]:num[1]+num[2], 1] = 1
+        onehot[num[1]+num[2]:-1, 2] = 1
+
+        cat_mask = tf.constant(onehot, dtype=tf.float32)
+        return cat_mask
 
 
 class GumbelSoftmax(object):
