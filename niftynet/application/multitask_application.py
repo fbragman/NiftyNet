@@ -285,7 +285,9 @@ class MultiTaskApplication(BaseApplication):
                         'initial_tau': self.multitask_param.tau,
                         'gs_anneal_r': self.multitask_param.gs_anneal_r,
                         'learn_categorical': self.multitask_param.learn_categorical,
-                        'init_categorical': self.multitask_param.init_categorical}
+                        'init_categorical': self.multitask_param.init_categorical,
+                        'use_hardcat': self.multitask_param.use_hardcat,
+                        'constant_grouping': self.multitask_param.constant_grouping}
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
             net_out, categoricals = self.net(image, **net_args)
@@ -355,6 +357,7 @@ class MultiTaskApplication(BaseApplication):
                                         [data_loss_task_1, data_loss_task_2],
                                         net_out,
                                         data_dict)
+
 
             # collect learned categorical parameters
             if categoricals is not None:
@@ -472,7 +475,6 @@ class MultiTaskApplication(BaseApplication):
         elif task_2_type == 'classification':
             loss_func_task_2 = ClassLossFunction(n_class=self.multitask_param.num_classes[1],
                                                  loss_type=self.multitask_param.loss_task_2)
-
         return loss_func_task_1, loss_func_task_2
 
     def output_collector_categoricals(self, outputs_collector, cats):
@@ -531,15 +533,16 @@ class MultiTaskApplication(BaseApplication):
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
-        #if self.multitask_param.task_1_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[0],
-        #                                        self.multitask_param.num_classes[0],
-        #                                        data_dict['output_1'], 'task_1')
+        if self.multitask_param.task_1_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[0],
+                                                self.multitask_param.num_classes[0],
+                                                data_dict['output_1'], 'task_1')
 
-        #if self.multitask_param.task_2_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[1],
-        #                                        self.multitask_param.num_classes[1],
-        #                                        data_dict['output_2'], 'task_2')
+        if self.multitask_param.task_2_type == 'classification':
+            self.add_classification_statistics_(outputs_collector, net_out[1],
+                                                self.multitask_param.num_classes[1],
+                                                data_dict['output_2'], 'task_2')
+
 
     def interpret_output(self, batch_output):
         if self.is_inference:
@@ -580,25 +583,33 @@ class MultiTaskApplication(BaseApplication):
         prediction = tf.reshape(tf.argmax(net_out, -1), [-1])
 
         if num_classes == 2:
-            acc, _ = tf.metrics.accuracy(labels=labels, predictions=prediction)
-            pre, _ = tf.metrics.precision(labels=labels, predictions=prediction)
-            rec, _ = tf.metrics.recall(labels=labels, predictions=prediction)
+            conf_mat = tf.confusion_matrix(labels=labels, predictions=prediction, num_classes=num_classes)
+            conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
+            TP = conf_mat[1][1]
+            FP = conf_mat[0][1]
+            FN = conf_mat[1][0]
+            accuracy = tf.trace(conf_mat)
+            precision = TP / (TP + FP)
+            recall = TP / (TP + FN)
 
             outputs_collector.add_to_collection(
-                var=acc, name=opt_string + '_accuracy',
+                var=accuracy,
+                name='confusion_matrix',
                 average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
+                collection=TF_SUMMARIES)
+
             outputs_collector.add_to_collection(
-                var=pre, name=opt_string + '_precision',
+                var=precision,
+                name='confusion_matrix',
                 average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
+                collection=TF_SUMMARIES)
+
             outputs_collector.add_to_collection(
-                var=rec, name=opt_string + '_recall',
+                var=recall,
+                name='confusion_matrix',
                 average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
+                collection=TF_SUMMARIES)
+
         else:
             conf_mat = tf.confusion_matrix(labels=labels, predictions=prediction, num_classes=num_classes)
             conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
@@ -651,3 +662,32 @@ class MultiTaskApplication(BaseApplication):
         value = tf.gather(colors, indices)
 
         return value
+
+    def set_iteration_update(self, iteration_message):
+        """
+        At each iteration ``application_driver`` calls::
+
+            output = tf.session.run(variables_to_eval, feed_dict=data_dict)
+
+        to evaluate TF graph elements, where
+        ``variables_to_eval`` and ``data_dict`` are retrieved from
+        ``iteration_message.ops_to_run`` and
+        ``iteration_message.data_feed_dict``
+         (In addition to the variables collected by self.output_collector).
+
+        The output of `tf.session.run(...)` will be stored at
+        ``iteration_message.current_iter_output``, and can be accessed
+        from ``engine.handler_network_output.OutputInterpreter``.
+
+        override this function for more complex operations
+        (such as learning rate decay) according to
+        ``iteration_message.current_iter``.
+        """
+        if iteration_message.is_training:
+            iteration_message.data_feed_dict[self.is_validation] = False
+        elif iteration_message.is_validation:
+            iteration_message.data_feed_dict[self.is_validation] = True
+
+        if self.is_training:
+            iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
+                iteration_message.current_iter
