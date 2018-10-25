@@ -272,7 +272,7 @@ class MultiTaskApplication(BaseApplication):
                 data_dict = switch_sampler(for_training=True)
 
             # Current_iteration
-            current_iter = tf.placeholder(dtype=tf.float32)
+            current_iter = tf.placeholder(dtype=tf.float32, shape=())
 
             image = tf.cast(data_dict['image'], tf.float32)
 
@@ -283,7 +283,9 @@ class MultiTaskApplication(BaseApplication):
                         'group_connection': self.multitask_param.group_connection,
                         'use_tau_annealing': self.multitask_param.use_tau_annealing,
                         'initial_tau': self.multitask_param.tau,
-                        'gs_anneal_r': self.multitask_param.gs_anneal_r}
+                        'gs_anneal_r': self.multitask_param.gs_anneal_r,
+                        'learn_categorical': self.multitask_param.learn_categorical,
+                        'init_categorical': self.multitask_param.init_categorical}
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
             net_out, categoricals = self.net(image, **net_args)
