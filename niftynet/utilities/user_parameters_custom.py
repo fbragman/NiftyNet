@@ -390,9 +390,10 @@ def __add_multitask_args(parser):
 
     parser.add_argument(
         "--init_categorical",
+        metavar='',
         help="Set initial categorical probabilities e.g. (1/3, 1/3, 1/3)",
         type=float_array,
-        default=(1/3, 1/3, 1/3))
+        default=(0.333, 0.334, 0.333))
 
     # Allow constant grouping
     # [1,0,0;1,0,0;0,1,0;0,0,1] automatically set based on init_categorical
