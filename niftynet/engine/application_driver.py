@@ -354,7 +354,6 @@ class ApplicationDriver(object):
         # passed to the application (and observers) for interpretation.
         sess = tf.get_default_session()
         assert sess, 'method should be called within a TF session context.'
-
         iteration_message.current_iter_output = sess.run(
             iteration_message.ops_to_run,
             feed_dict=iteration_message.data_feed_dict)
