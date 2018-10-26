@@ -11,6 +11,7 @@ from niftynet.layer.annealing import gumbel_softmax_decay
 
 import tensorflow as tf
 
+
 class LearnedMTVGG16Net(BaseNet):
     """
     Multi-task VGG net
@@ -126,7 +127,8 @@ class LearnedMTVGG16Net(BaseNet):
             cat_ps = [x[0] for x in cats]
             return [task1_out, task2_out], cat_ps
 
-        return layer_instances[layer_id][1]
+        cat_ps = [x[0] for x in cats]
+        return [task1_out, task2_out], cat_ps
 
     def create_main_network_graph(self, images, is_training, current_iter=None,
                                   group_connection=None, use_annealing=False, gs_anneal_r=1e-5,
