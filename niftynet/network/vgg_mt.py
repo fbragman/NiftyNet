@@ -22,6 +22,7 @@ class MT1_VGG16Net(BaseNet):
 
     def __init__(self,
                  num_classes,
+                 layer_scale,
                  w_initializer=None,
                  w_regularizer=None,
                  b_initializer=None,
@@ -38,16 +39,18 @@ class MT1_VGG16Net(BaseNet):
             acti_func=acti_func,
             name=name)
 
+        scale = int(self.layer_scale)
+
         self.layers = [
-            {'name': 'layer_1', 'n_features': 64, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_1', 'n_features': 64/scale, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_2', 'n_features': 128/scale, 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': 256, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_3', 'n_features': 256/scale, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_4', 'n_features': 512/scale, 'kernel_size': 3, 'repeat': 3},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_5', 'n_features': 512/scale, 'kernel_size': 3, 'repeat': 3},
             {'name': 'gap'}]
 
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
