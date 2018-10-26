@@ -374,6 +374,13 @@ def __add_multitask_args(parser):
     )
 
     parser.add_argument(
+        "--layer_scale",
+        help="[Method option] parameter to change number of features in network",
+        type=float,
+        default=1
+    )
+
+    parser.add_argument(
         "--gs_anneal_r",
         help="[Method option] GumbelSoftmax annealing hyper-parameter r",
         type=float,
