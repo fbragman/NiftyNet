@@ -315,6 +315,8 @@ class MultiTaskApplication(BaseApplication):
             weight_map = None if weight_map is None else crop_layer(weight_map)
 
             # determine whether cropping is needed (1x1 label image or actual dense prediction)
+            print(net_out_task_1)
+            print(data_dict['output_1'])
             if len(net_out_task_1.shape) < 3:
                 data_loss_task_1 = loss_func_task_1(
                     prediction=net_out_task_1,
