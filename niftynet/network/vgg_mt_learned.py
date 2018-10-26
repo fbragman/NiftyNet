@@ -57,7 +57,7 @@ class LearnedMTVGG16Net(BaseNet):
             acti_func=acti_func,
             name=name)
 
-        scale = int(self.layer_scale)
+        scale = self.layer_scale
 
         self.layers = [
             {'name': 'layer_1', 'n_features': 64/scale, 'kernel_size': 3, 'repeat': 2},
