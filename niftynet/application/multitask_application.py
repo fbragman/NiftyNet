@@ -246,6 +246,7 @@ class MultiTaskApplication(BaseApplication):
 
         self.net = ApplicationNetFactory.create(self.net_param.name)(
             num_classes=self.multitask_param.num_classes,
+            layer_scale=self.multitask_param.layer_scale,
             w_initializer=InitializerFactory.get_initializer(
                 name=self.net_param.weight_initializer),
             b_initializer=InitializerFactory.get_initializer(
