@@ -374,11 +374,23 @@ class MultiTaskApplication(BaseApplication):
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
 
+            # Current_iteration
+            current_iter = tf.placeholder(dtype=tf.float32, shape=())
+
+            # Optional arguments
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob,
-                        'group_connection': self.multitask_param.group_connection}
+                        'current_iter': current_iter,
+                        'group_connection': self.multitask_param.group_connection,
+                        'use_tau_annealing': self.multitask_param.use_tau_annealing,
+                        'initial_tau': self.multitask_param.tau,
+                        'gs_anneal_r': self.multitask_param.gs_anneal_r,
+                        'learn_categorical': self.multitask_param.learn_categorical,
+                        'init_categorical': self.multitask_param.init_categorical,
+                        'use_hardcat': self.multitask_param.use_hardcat,
+                        'constant_grouping': self.multitask_param.constant_grouping}
 
-            net_out, categoricals = self.net(image, **net_args)
+            net_out, _ = self.net(image, **net_args)
             net_out_task_1 = net_out[0]
             net_out_task_2 = net_out[1]
             task_1_type = self.multitask_param.task_1_type
@@ -411,8 +423,8 @@ class MultiTaskApplication(BaseApplication):
                 net_out_task_2 = post_process_layer(net_out_task_2)
 
             #TODO add output for learned categorical grouping
-            if categoricals is not None:
-                self.categorical_output()
+            #if categoricals is not None:
+            #    self.categorical_output()
 
             # Collections
             outputs_collector.add_to_collection(

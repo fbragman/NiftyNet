@@ -177,6 +177,10 @@ class BaseApplication(with_metaclass(SingletonApplication, object)):
         elif iteration_message.is_validation:
             iteration_message.data_feed_dict[self.is_validation] = True
 
+        if self.is_training:
+            iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
+                iteration_message.current_iter
+
     def get_sampler(self):
         """
         Get samplers of the application
