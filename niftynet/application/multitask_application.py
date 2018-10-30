@@ -535,6 +535,7 @@ class MultiTaskApplication(BaseApplication):
         outputs_collector.add_to_collection(
             var=data_losses[0], name=task_1_string,
             average_over_devices=False, collection=CONSOLE)
+
         outputs_collector.add_to_collection(
             var=data_losses[0], name=task_1_string,
             average_over_devices=True, summary_type='scalar',
@@ -543,6 +544,7 @@ class MultiTaskApplication(BaseApplication):
         outputs_collector.add_to_collection(
             var=data_losses[1], name=task_2_string,
             average_over_devices=False, collection=CONSOLE)
+
         outputs_collector.add_to_collection(
             var=data_losses[1], name=task_2_string,
             average_over_devices=True, summary_type='scalar',
@@ -553,10 +555,44 @@ class MultiTaskApplication(BaseApplication):
                                                 self.multitask_param.num_classes[0],
                                                 data_dict['output_1'], 'task_1')
 
+        elif self.multitask_param.task_1_type == 'regression':
+            mae_loss = RegLossFunction(loss_type='MAE')
+            data_loss_task_1 = mae_loss(
+                prediction=net_out[0],
+                ground_truth=data_dict['output_1'])
+
+            reporting_string = 'task_1_mae'
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_1, name=reporting_string,
+                average_over_devices=False, collection=CONSOLE)
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_1, name=reporting_string,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
+
         if self.multitask_param.task_2_type == 'classification':
             self.add_classification_statistics_(outputs_collector, net_out[1],
                                                 self.multitask_param.num_classes[1],
                                                 data_dict['output_2'], 'task_2')
+
+        elif self.multitask_param.task_1_type == 'regression':
+            mae_loss = RegLossFunction(loss_type='MAE')
+            data_loss_task_2 = mae_loss(
+                prediction=net_out[1],
+                ground_truth=data_dict['output_2'])
+
+            reporting_string = 'task_2_mae'
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_2, name=reporting_string,
+                average_over_devices=False, collection=CONSOLE)
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_2, name=reporting_string,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
 
 
     def interpret_output(self, batch_output):
@@ -609,19 +645,25 @@ class MultiTaskApplication(BaseApplication):
 
             outputs_collector.add_to_collection(
                 var=accuracy,
-                name='confusion_matrix',
+                name=opt_string + '_accuracy',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
             outputs_collector.add_to_collection(
+                var=accuracy,
+                name=opt_string + '_accuracy',
+                average_over_devices=False,
+                collection=CONSOLE)
+
+            outputs_collector.add_to_collection(
                 var=precision,
-                name='confusion_matrix',
+                name=opt_string + '_precision',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
             outputs_collector.add_to_collection(
                 var=recall,
-                name='confusion_matrix',
+                name=opt_string + '_recall',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
