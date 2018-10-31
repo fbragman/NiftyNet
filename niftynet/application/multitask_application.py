@@ -357,7 +357,7 @@ class MultiTaskApplication(BaseApplication):
             if self.multitask_param.learn_categorical:
                 categoricals_of_network = tf.concat(categoricals, axis=0)
                 categorical_entropy = entropy_loss(categoricals_of_network)
-                entropy_decay = self.multitask_param.entropy_decay
+                entropy_decay = 0.01
 
                 loss += entropy_decay * categorical_entropy
 

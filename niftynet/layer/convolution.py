@@ -1073,7 +1073,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
             # Dirichlet probabilities / parameters of Categorical
             # Default: (1/3, 1/3, 1/3)
-            dirichlet_init_user = np.float32(np.asarray(self.init_cat))
+            # Inverse of softplus
+            dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
             dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
 
             # Check if using constant grouping or learning
@@ -1082,8 +1083,12 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                               initializer=dirichlet_init,
                                               dtype=tf.float32,
                                               trainable=True)
-                # For variables to be in range [0, 1]
-                dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+
+                # For variables to be in range [0, 1] - softplus
+                dirichlet_p = tf.nn.softplus(dirichlet_p)
+                dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
+
+
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
 
