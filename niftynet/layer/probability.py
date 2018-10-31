@@ -123,3 +123,16 @@ class GumbelSoftmax(object):
             # let y_sample = y_hard but only allowing y_sample to be used for derivative
             y_sample = tf.stop_gradient(y_hard - y_sample) + y_sample
         return y_sample
+
+
+def entropy_loss(probabilities: tf.Tensor):
+    """Sum of entropies.
+
+    Args:
+        probabilities:  A `Tensor` of size [d_1, d_2, ..., d_{n-1}, num_classes]
+            which sums up to 1.0 along the last dimension.
+    Returns:
+        loss: Loss output
+    """
+    probs_clipped = tf.clip_by_value(probabilities, 1e-10, 0.9999999)
+    return tf.reduce_sum(-probs_clipped * tf.log(probs_clipped))

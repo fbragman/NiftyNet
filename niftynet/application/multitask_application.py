@@ -28,6 +28,8 @@ from niftynet.layer.loss_regression import LossFunction as RegLossFunction
 from niftynet.layer.loss_segmentation import LossFunction as SegLossFunction
 from niftynet.layer.loss_classification import LossFunction as ClassLossFunction
 
+from niftynet.layer.probability import entropy_loss
+
 from niftynet.layer.mean_variance_normalisation import \
     MeanVarNormalisationLayer
 from niftynet.layer.pad import PadLayer
@@ -291,6 +293,9 @@ class MultiTaskApplication(BaseApplication):
                         'constant_grouping': self.multitask_param.constant_grouping}
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
+            # net_out: list with outputs for tasks
+            # categoricals: list of tensors of shape N_l by 3 where N_l is
+            #               number of features for each layer
             net_out, categoricals = self.net(image, **net_args)
             net_out_task_1 = net_out[0]
             net_out_task_2 = net_out[1]
@@ -337,8 +342,7 @@ class MultiTaskApplication(BaseApplication):
                     ground_truth=crop_layer(data_dict['output_2']),
                     weight_map=weight_map)
 
-            # Vanilla multi-task loss
-            # TODO implement ability to do uncertainty based mt learning from other branch
+            # Multi-task loss
             data_loss = data_loss_task_1 + data_loss_task_2
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
@@ -348,6 +352,14 @@ class MultiTaskApplication(BaseApplication):
                 loss = data_loss + reg_loss
             else:
                 loss = data_loss
+
+            # Calculate entropy of categoricals
+            if self.multitask_param.learn_categorical:
+                categoricals_of_network = tf.concat(categoricals, axis=0)
+                categorical_entropy = entropy_loss(categoricals_of_network)
+                entropy_decay = self.multitask_param.entropy_decay
+
+                loss += entropy_decay * categorical_entropy
 
             grads = self.optimiser.compute_gradients(
                 loss, colocate_gradients_with_ops=True)
