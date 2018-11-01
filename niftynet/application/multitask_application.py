@@ -350,6 +350,8 @@ class MultiTaskApplication(BaseApplication):
                 reg_loss = tf.reduce_mean(
                     [tf.reduce_mean(reg_loss) for reg_loss in reg_losses])
                 loss = data_loss + reg_loss
+                self.output_collector_loss(outputs_collector,
+                                           [reg_loss, 'W_loss'])
             else:
                 loss = data_loss
 
@@ -360,8 +362,8 @@ class MultiTaskApplication(BaseApplication):
                 entropy_decay = self.multitask_param.entropy_decay
 
                 loss = loss - (entropy_decay * categorical_entropy)
+
                 self.output_collector_loss(outputs_collector,
-                                           [reg_loss, 'W_loss'],
                                            [entropy_decay * categorical_entropy, 'H_loss'])
 
             grads = self.optimiser.compute_gradients(
@@ -507,22 +509,15 @@ class MultiTaskApplication(BaseApplication):
                                                  loss_type=self.multitask_param.loss_task_2)
         return loss_func_task_1, loss_func_task_2
 
-
-    def output_collector_loss(self, output_collector, loss_1, loss_2):
+    def output_collector_loss(self, output_collector, loss):
         """
         Output l2 weight loss and entropy loss
         :param output_collector:
-        :param loss_1: list [loss_tensor, loss_string]
-        :param loss_2: list [loss_tensor, loss_string]
+        :param loss: list [loss_tensor, loss_string]
         :return:
         """
         output_collector.add_to_collection(
-            var=loss_1[0], name=loss_1[1],
-            average_over_devices=True, summary_type='scalar',
-            collection=TF_SUMMARIES)
-
-        output_collector.add_to_collection(
-            var=loss_2[0], name=loss_2[1],
+            var=loss[0], name=loss[1],
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
