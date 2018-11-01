@@ -142,7 +142,7 @@ def entropy_loss_by_layer(probability_list: list):
     """
     Sum of per layer average entropies
     :param probability_list:
-    :return:
+    :return: sum of average per layer categoricals
     """
     summed_entropy = 0
     for layer_p in probability_list:
@@ -155,6 +155,7 @@ def entropy(probs: tf.Tensor):
     """
     H(p) = -p * log(p)
     :param probs:
-    :return:
+    :return: an [N,1] tensor where for every row, the entropy of the probs is
+             calculated
     """
     return tf.reduce_sum(-probs * tf.log(probs), axis=1)
