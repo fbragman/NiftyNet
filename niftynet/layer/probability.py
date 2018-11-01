@@ -136,3 +136,25 @@ def entropy_loss(probabilities: tf.Tensor):
     """
     probs_clipped = tf.clip_by_value(probabilities, 1e-10, 0.9999999)
     return tf.reduce_sum(-probs_clipped * tf.log(probs_clipped))
+
+
+def entropy_loss_by_layer(probability_list: list):
+    """
+    Sum of per layer average entropies
+    :param probability_list:
+    :return:
+    """
+    summed_entropy = 0
+    for layer_p in probability_list:
+        probs_clipped = tf.clip_by_value(layer_p, 1e-10, 0.9999999)
+        avg_layer_entropy = tf.reduce_mean(entropy(probs_clipped))
+        summed_entropy += avg_layer_entropy
+
+
+def entropy(probs: tf.Tensor):
+    """
+    H(p) = -p * log(p)
+    :param probs:
+    :return:
+    """
+    return tf.reduce_sum(-probs * tf.log(probs), axis=1)

@@ -28,7 +28,7 @@ from niftynet.layer.loss_regression import LossFunction as RegLossFunction
 from niftynet.layer.loss_segmentation import LossFunction as SegLossFunction
 from niftynet.layer.loss_classification import LossFunction as ClassLossFunction
 
-from niftynet.layer.probability import entropy_loss
+from niftynet.layer.probability import entropy_loss, entropy_loss_by_layer
 
 from niftynet.layer.mean_variance_normalisation import \
     MeanVarNormalisationLayer
@@ -357,8 +357,8 @@ class MultiTaskApplication(BaseApplication):
 
             # Calculate entropy of categoricals
             if self.multitask_param.learn_categorical:
-                categoricals_of_network = tf.concat(categoricals, axis=0)
-                categorical_entropy = entropy_loss(categoricals_of_network)
+                #categoricals_of_network = tf.concat(categoricals, axis=0)
+                categorical_entropy = entropy_loss_by_layer(categoricals)
                 entropy_decay = self.multitask_param.entropy_decay
 
                 loss = loss - (entropy_decay * categorical_entropy)
