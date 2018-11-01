@@ -359,7 +359,7 @@ class MultiTaskApplication(BaseApplication):
                 categorical_entropy = entropy_loss(categoricals_of_network)
                 entropy_decay = self.multitask_param.entropy_decay
 
-                loss += entropy_decay * categorical_entropy
+                loss -= entropy_decay * categorical_entropy
                 self.output_collector_loss(outputs_collector,
                                            [reg_loss, 'W_loss'],
                                            [categorical_entropy, 'H_loss'])
