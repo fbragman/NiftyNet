@@ -370,12 +370,19 @@ def __add_multitask_args(parser):
         help="[Method option] Initial temperature or constant temperature for"
              "Gumbel-Softmax approximation",
         type=float,
-        default=1
+        default=0.1
     )
 
     parser.add_argument(
         "--layer_scale",
         help="[Method option] parameter to change number of features in network",
+        type=float,
+        default=1
+    )
+
+    parser.add_argument(
+        "--entropy_decay",
+        help="[Method option] Entropy decay parameter",
         type=float,
         default=1
     )

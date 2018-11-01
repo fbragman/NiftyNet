@@ -357,9 +357,12 @@ class MultiTaskApplication(BaseApplication):
             if self.multitask_param.learn_categorical:
                 categoricals_of_network = tf.concat(categoricals, axis=0)
                 categorical_entropy = entropy_loss(categoricals_of_network)
-                entropy_decay = 0.01
+                entropy_decay = self.multitask_param.entropy_decay
 
                 loss += entropy_decay * categorical_entropy
+                self.output_collector_loss(outputs_collector,
+                                           [reg_loss, 'W_loss'],
+                                           [categorical_entropy, 'H_loss'])
 
             grads = self.optimiser.compute_gradients(
                 loss, colocate_gradients_with_ops=True)
@@ -504,21 +507,57 @@ class MultiTaskApplication(BaseApplication):
                                                  loss_type=self.multitask_param.loss_task_2)
         return loss_func_task_1, loss_func_task_2
 
+
+    def output_collector_loss(self, output_collector, loss_1, loss_2):
+        """
+        Output l2 weight loss and entropy loss
+        :param output_collector:
+        :param loss_1: list [loss_tensor, loss_string]
+        :param loss_2: list [loss_tensor, loss_string]
+        :return:
+        """
+        output_collector.add_to_collection(
+            var=loss_1[0], name=loss_1[1],
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
+        output_collector.add_to_collection(
+            var=loss_2[0], name=loss_2[1],
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
     def output_collector_categoricals(self, outputs_collector, cats):
         """
         Output learned categoricals as images
         :param cats:
         :return:
         """
-        for cat in cats:
+        for idx, cat in enumerate(cats):
             # reshape cat to image format but put each kernel as a batch
-            var_name = cat.name
-            cat = cat[tf.newaxis, :, :, tf.newaxis]
-            cat = self.colorize(cat, cmap='binary')
+            var_name = 'group_probs_layer_' + str(idx)
+            tmp_cat = tf.reduce_mean(cat, axis=0)
+
+            task_1_cat = tmp_cat[0]
+            shared_cat = tmp_cat[1]
+            task_2_cat = tmp_cat[2]
+
+            task_1_name = var_name + '/task_1'
+            shared_name = var_name + '/shared'
+            task_2_name = var_name + '/task_2'
+
             outputs_collector.add_to_collection(
-                var=cat[tf.newaxis, :, :, :],
-                name=var_name,
-                average_over_devices=True, summary_type='image',
+                var=task_1_cat, name=task_1_name,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
+
+            outputs_collector.add_to_collection(
+                var=shared_cat, name=shared_name,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
+
+            outputs_collector.add_to_collection(
+                var=task_2_cat, name=task_2_name,
+                average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
     def output_collector_truck(self, outputs_collector, data_loss, data_losses, net_out, data_dict):
