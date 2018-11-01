@@ -102,7 +102,7 @@ class GumbelSoftmax(object):
         y = self.probs + self.sample_gumbel(tf.shape(self.probs))
         return tf.nn.softmax(y / self.temp)
 
-    def __call__(self, hard=False):
+    def __call__(self, hard):
         """
         Sample from the Gumbel-Softmax
         If hard=True
