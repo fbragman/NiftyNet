@@ -150,6 +150,8 @@ def entropy_loss_by_layer(probability_list: list):
         avg_layer_entropy = tf.reduce_mean(entropy(probs_clipped))
         summed_entropy += avg_layer_entropy
 
+    return summed_entropy
+
 
 def entropy(probs: tf.Tensor):
     """
