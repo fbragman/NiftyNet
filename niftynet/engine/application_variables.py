@@ -182,6 +182,11 @@ class OutputsCollector(object):
         This function should be called in
         `ApplicationDriver.create_graph` function
         """
+
+        all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+        for var in all_vars:
+            tf.summary.histogram(var.name.replace(':', '_'), var)
+
         self._average_variables_over_devices(self.console_vars, False)
         self._average_variables_over_devices(self.output_vars, False)
         self._average_variables_over_devices(self.summary_vars, True)
