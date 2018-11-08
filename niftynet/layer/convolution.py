@@ -959,6 +959,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  use_hardcat=True,
                  learn_cat=True,
                  init_cat=(1/3, 1/3, 1/3),
+                 p_init=False,
                  constant_grouping=False,
                  use_annealing=False,
                  group_connection='mixed',
@@ -986,6 +987,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         self.categorical = categorical
         self.use_hardcat = use_hardcat
         self.learn_cat = learn_cat
+        self.p_init = p_init
         self.init_cat = init_cat
         self.constant_grouping = constant_grouping
 
@@ -1021,7 +1023,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None):
+    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False):
 
         if self.with_bn:
             if is_training is None:
@@ -1074,8 +1076,13 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             # Dirichlet probabilities / parameters of Categorical
             # Default: (1/3, 1/3, 1/3)
             # Inverse of softplus
-            dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
-            dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
+            if self.p_init:
+                # random p_init?
+                a = 2
+            else:
+                #dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
+                dirichlet_init_user = np.float32(np.asarray(self.init_cat))
+                dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
 
             # Check if using constant grouping or learning
             if self.learn_cat:
@@ -1085,10 +1092,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                               trainable=True)
 
                 # For variables to be in range [0, 1] - softplus
-                dirichlet_p = tf.nn.softplus(dirichlet_p)
-                dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
-
-
+                #dirichlet_p = tf.nn.softplus(dirichlet_p)
+                #dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
+                dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
 
@@ -1159,6 +1165,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         output_layers[0] = bn_1(output_layers[0], is_training)
         output_layers[1] = bn_2(output_layers[1], is_training)
         output_layers[2] = bn_3(output_layers[2], is_training)
+
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
                 # task 1 tensor
