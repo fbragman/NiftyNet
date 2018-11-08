@@ -249,6 +249,7 @@ class MultiTaskApplication(BaseApplication):
         self.net = ApplicationNetFactory.create(self.net_param.name)(
             num_classes=self.multitask_param.num_classes,
             layer_scale=self.multitask_param.layer_scale,
+            p_init=self.multitask_param.random_p_init,
             w_initializer=InitializerFactory.get_initializer(
                 name=self.net_param.weight_initializer),
             b_initializer=InitializerFactory.get_initializer(
@@ -290,7 +291,8 @@ class MultiTaskApplication(BaseApplication):
                         'learn_categorical': self.multitask_param.learn_categorical,
                         'init_categorical': self.multitask_param.init_categorical,
                         'use_hardcat': self.multitask_param.use_hardcat,
-                        'constant_grouping': self.multitask_param.constant_grouping}
+                        'constant_grouping': self.multitask_param.constant_grouping
+                        }
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
             # net_out: list with outputs for tasks
@@ -361,7 +363,7 @@ class MultiTaskApplication(BaseApplication):
                 categorical_entropy = entropy_loss_by_layer(categoricals)
                 entropy_decay = self.multitask_param.entropy_decay
 
-                loss = loss - (entropy_decay * categorical_entropy)
+                loss -= (entropy_decay * categorical_entropy)
 
                 self.output_collector_loss(outputs_collector,
                                            [entropy_decay * categorical_entropy, 'H_loss'])
@@ -398,7 +400,7 @@ class MultiTaskApplication(BaseApplication):
             current_iter = tf.placeholder(dtype=tf.float32, shape=())
 
             # Optional arguments
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
                         'group_connection': self.multitask_param.group_connection,
