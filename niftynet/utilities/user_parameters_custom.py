@@ -409,6 +409,14 @@ def __add_multitask_args(parser):
         type=float_array,
         default=(0.333, 0.334, 0.333))
 
+    parser.add_argument(
+        "--random_p_init",
+        metavar='',
+        help="[Method option] Random initialisation of categorical probabilities",
+        type=str2boolean,
+        default=False
+    )
+
     # Allow constant grouping
     # [1,0,0;1,0,0;0,1,0;0,0,1] automatically set based on init_categorical
     parser.add_argument(
