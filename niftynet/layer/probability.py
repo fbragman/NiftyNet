@@ -125,6 +125,26 @@ class GumbelSoftmax(object):
         return y_sample
 
 
+def multivariate_entropy_loss(probability_list: list):
+    """
+    Entropy that is based over [N, 3] probability distribution
+    In this configuration, min(entropy) --> point at edges of 2-simplex
+                           max(entropy) --> points cluster in middle of 2-simplex
+
+    This is opposite of entropy_loss_by_layer function, which gives:
+    max(entropy) per layer when all cats = [1/3, 1/3, 1/3]
+    min(entropy) per layer when all cats = [1, 0, 0] or [0, 1, 0] or [0, 0, 1]
+
+
+    :param probabilities:
+    :return:
+    """
+    summed_entropy = 0
+    for layer_p in probability_list:
+        probs_clipped = tf.clip_by_value(layer_p, 1e-10, 0.9999999)
+
+
+
 def entropy_loss(probabilities: tf.Tensor):
     """Sum of entropies.
 
