@@ -12,6 +12,7 @@ class BaseNet(TrainableLayer):
     def __init__(self,
                  num_classes=0,
                  layer_scale=1,
+                 p_init=False,
                  w_initializer=None,
                  w_regularizer=None,
                  b_initializer=None,
@@ -25,6 +26,8 @@ class BaseNet(TrainableLayer):
         self.acti_func = acti_func
 
         self.layer_scale = layer_scale
+
+        self.p_init = p_init
 
         self.initializers = {'w': w_initializer, 'b': b_initializer}
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
