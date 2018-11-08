@@ -400,7 +400,7 @@ class MultiTaskApplication(BaseApplication):
             current_iter = tf.placeholder(dtype=tf.float32, shape=())
 
             # Optional arguments
-            net_args = {'is_training': True,
+            net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
                         'group_connection': self.multitask_param.group_connection,
