@@ -97,7 +97,7 @@ class VGG16Net(BaseNet):
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                 )
-                flow = fc_layer(flow)
+                flow = fc_layer(flow, is_training)
                 layer_instances.append((fc_layer, flow))
                 continue
 
@@ -131,7 +131,7 @@ class VGG16Net(BaseNet):
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                 )
-                flow = fc_layer(flow)
+                flow = fc_layer(flow, is_training)
                 layer_instances.append((fc_layer, flow))
 
         if is_training:
