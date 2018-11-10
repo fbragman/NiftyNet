@@ -363,6 +363,9 @@ def save_volume_5d(img_data, filename, save_path, affine=np.eye(4)):
         if os.path.isfile(output_name):
             tf.logging.warning(
                 'File %s exists, overwriting the file.', output_name)
+            tf.logging.fatal(
+                'EXITING NOW - CRAZY INFERENCE MODE OVER')
+            sys.exit()
         nib.save(img_nii, output_name)
     except OSError:
         tf.logging.fatal("writing failed {}".format(output_name))
