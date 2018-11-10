@@ -1073,12 +1073,11 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             # Number of kernels
             N = self.n_output_chns
 
-            # Dirichlet probabilities / parameters of Categorical
-            # Default: (1/3, 1/3, 1/3)
-            # Inverse of softplus
             if self.p_init:
-                # random p_init?
-                a = 2
+                dirichlet = tf.distributions.Dirichlet
+                alpha = tf.constant([1., 1., 1.])
+                dist = dirichlet(alpha)
+                dirichlet_init = tf.stop_gradient(dist.sample([N]))
             else:
                 #dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
                 dirichlet_init_user = np.float32(np.asarray(self.init_cat))
@@ -1095,6 +1094,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 #dirichlet_p = tf.nn.softplus(dirichlet_p)
                 #dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
                 dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
 
