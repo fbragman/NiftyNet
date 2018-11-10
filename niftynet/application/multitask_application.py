@@ -82,7 +82,7 @@ class MultiTaskApplication(BaseApplication):
             reader_names = ('image', 'output_1', 'output_2', 'weight', 'sampler')
         elif self.is_inference:
             # in the inference process use `image` input only
-            reader_names = ('image',)
+            reader_names = ('image', 'output_2')
         elif self.is_evaluation:
             reader_names = ('image', 'output_1', 'output_2', 'inferred')
         else:
@@ -182,7 +182,7 @@ class MultiTaskApplication(BaseApplication):
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
-            shuffle=self.is_training,
+            shuffle=True,
             smaller_final_batch_mode=self.net_param.smaller_final_batch_mode,
             queue_length=self.net_param.queue_length) for reader in
             self.readers]]
@@ -393,14 +393,14 @@ class MultiTaskApplication(BaseApplication):
 
         elif self.is_inference:
 
-            data_dict = switch_sampler(for_training=False)
+            data_dict = switch_sampler(for_training=self.is_training)
             image = tf.cast(data_dict['image'], tf.float32)
 
             # Current_iteration
             current_iter = tf.placeholder(dtype=tf.float32, shape=())
 
             # Optional arguments
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
                         'group_connection': self.multitask_param.group_connection,
@@ -412,7 +412,7 @@ class MultiTaskApplication(BaseApplication):
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping}
 
-            net_out, _ = self.net(image, **net_args)
+            net_out, categoricals = self.net(image, **net_args)
             net_out_task_1 = net_out[0]
             net_out_task_2 = net_out[1]
             task_1_type = self.multitask_param.task_1_type
