@@ -20,7 +20,7 @@ def analyse_validation_loss(path_to_log, path_to_checkpoints, task_flag):
         elif task_flag == 2:
             task_1 = 'task_1_classification'
             task_2 = 'task_2_classification'
-            recip = [False, False]
+            recip = [True, True]
         elif task_flag == 3:
             task_1 = 'loss'
             task_2 = None
