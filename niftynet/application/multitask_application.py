@@ -182,7 +182,7 @@ class MultiTaskApplication(BaseApplication):
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
-            shuffle=True,
+            shuffle=self.is_training,
             smaller_final_batch_mode=self.net_param.smaller_final_batch_mode,
             queue_length=self.net_param.queue_length) for reader in
             self.readers]]
@@ -726,6 +726,23 @@ class MultiTaskApplication(BaseApplication):
                 name='confusion_matrix',
                 average_over_devices=True, summary_type='image',
                 collection=TF_SUMMARIES)
+
+            # Calculate accuracy
+            conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
+            accuracy = tf.trace(conf_mat)
+
+            outputs_collector.add_to_collection(
+                var=accuracy,
+                name=opt_string + '_accuracy',
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
+
+            outputs_collector.add_to_collection(
+                var=accuracy,
+                name=opt_string + '_accuracy',
+                average_over_devices=False,
+                collection=CONSOLE)
+
 
     def colorize(self, value, vmin=None, vmax=None, cmap=None):
         """
