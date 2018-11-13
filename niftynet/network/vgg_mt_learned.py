@@ -140,7 +140,7 @@ class LearnedMTVGG16Net(BaseNet):
                                   group_connection=None, use_annealing=False, gs_anneal_r=1e-5,
                                   tau_ini=1, use_hardcat=True,
                                   learn_cat=True, init_cat=(1/3, 1/3, 1/3),
-                                  constant_grouping=False):
+                                  constant_grouping=False, min_temp=0.05):
 
         layer_instances = []
         mask_instances = []
@@ -151,7 +151,7 @@ class LearnedMTVGG16Net(BaseNet):
             if is_training:
                 tau = 0.05
             else:
-                tau = gumbel_softmax_decay(current_iter, 1e-5, max_temp=1.0, min_temp=0.05)
+                tau = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=1.0, min_temp=min_temp)
             tau = tf.Print(tau, [tau])
         else:
             tau = tau_ini
