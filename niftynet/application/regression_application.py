@@ -170,7 +170,8 @@ class RegressionApplication(BaseApplication):
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
-            shuffle=self.is_training,
+            shuffle=True,
+            inference=self.is_inference,
             smaller_final_batch_mode=self.net_param.smaller_final_batch_mode,
             queue_length=self.net_param.queue_length) for reader in
             self.readers]]
@@ -261,6 +262,8 @@ class RegressionApplication(BaseApplication):
             else:
                 data_dict = switch_sampler(for_training=True)
 
+            current_iter = tf.placeholder(dtype=tf.float32, shape=())
+
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
@@ -277,8 +280,8 @@ class RegressionApplication(BaseApplication):
             weight_map = data_dict.get('weight', None)
             weight_map = None if weight_map is None else crop_layer(weight_map)
             data_loss = loss_func(
-                prediction=crop_layer(net_out),
-                ground_truth=crop_layer(data_dict['output']),
+                prediction=net_out,
+                ground_truth=data_dict['output'],
                 weight_map=weight_map)
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
             if self.net_param.decay > 0.0 and reg_losses:
@@ -306,9 +309,10 @@ class RegressionApplication(BaseApplication):
                         'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
             net_out = PostProcessingLayer('IDENTITY')(net_out)
+            net_out = tf.Print(net_out, [net_out])
 
             outputs_collector.add_to_collection(
-                var=net_out, name='window',
+                var=net_out, name='task_regression',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
@@ -317,8 +321,10 @@ class RegressionApplication(BaseApplication):
 
     def interpret_output(self, batch_output):
         if self.is_inference:
+            tasks = list(batch_output.keys())[0:-1]
             return self.output_decoder.decode_batch(
-                batch_output['window'], batch_output['location'])
+                {tasks[0]: batch_output[tasks[0]]},
+                batch_output['location'])
         return True
 
     def initialise_evaluator(self, eval_param):

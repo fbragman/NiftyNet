@@ -53,6 +53,7 @@ class ImageWindowDataset(Layer):
                  batch_size=1,
                  windows_per_image=1,
                  queue_length=10,
+                 inference=False,
                  shuffle=True,
                  epoch=-1,
                  smaller_final_batch_mode='pad',
@@ -77,6 +78,7 @@ class ImageWindowDataset(Layer):
 
         self.from_generator = inspect.isgeneratorfunction(self.layer_op)
         self.shuffle = shuffle
+        self.inference = inference
         self.epoch = 1 if self.from_generator else epoch
         self.smaller_final_batch_mode = look_up_operations(
             smaller_final_batch_mode.lower(), SMALLER_FINAL_BATCH_MODE)

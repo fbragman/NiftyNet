@@ -182,7 +182,8 @@ class MultiTaskApplication(BaseApplication):
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
-            shuffle=self.is_training,
+            shuffle=True,
+            inference=self.is_inference,
             smaller_final_batch_mode=self.net_param.smaller_final_batch_mode,
             queue_length=self.net_param.queue_length) for reader in
             self.readers]]
@@ -396,8 +397,8 @@ class MultiTaskApplication(BaseApplication):
             data_dict = switch_sampler(for_training=self.is_training)
             image = tf.cast(data_dict['image'], tf.float32)
 
-            # Current_iteration
-            current_iter = tf.placeholder(dtype=tf.float32, shape=())
+            # Current_iteration: any value since we set tau = 0.05 if trianing to make it close to one-hot vector
+            current_iter = tf.constant(1)
 
             # Optional arguments
             net_args = {'is_training': True,

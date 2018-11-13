@@ -16,6 +16,7 @@ def get_user_params():
     parser.add_argument("-n", "--n_evaluations", help="The number of evaluations to perform.", default=10)
     parser.add_argument("-o", "--output_prefix", help="The prefix for the output directories", default='output')
     parser.add_argument("-t", "--tasks", help="Tasks in results", default=1)
+    parser.add_argument("-x", "--method", help='either multi, class or reg')
 
     return parser.parse_args()
 
@@ -46,6 +47,9 @@ def calling_function(pyconda, multi_task_app, tmp_config):
 if __name__ == "__main__":
 
     multi_task_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_multitask.py'
+    reg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_regress.py'
+    class_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_classify.py'
+
     pyconda = '/home/fbragman/miniconda3/envs/tf_d/bin/python'
 
     args = get_user_params()
@@ -75,8 +79,14 @@ if __name__ == "__main__":
     else:
         eval_set = 'inference'
 
+    if not config.has_section('INFERENCE'):
+        config.add_section('INFERENCE')
+
     config.set('INFERENCE', 'dataset_to_infer', eval_set)
     config.set('INFERENCE', 'inference_iter', args.training_iter)
+    config.set('INFERENCE', 'border', (0, 0, 0))
+    config.set('INFERENCE', 'output_interp_order', -1)
+    config.set('INFERENCE', 'spatial_window_size', (200, 200))
 
     tmp_config = os.path.splitext(args.config_path)[0] + '_tmp.ini'
     print('CREATING TMP CONFIG FILE')
@@ -101,9 +111,15 @@ if __name__ == "__main__":
             print('SAVING TMP CONFIG FILE')
             config.write(pf)
 
-        #try:
-            #calling_function(pyconda, multi_task_app, tmp_config)
-        #except:
-        #    print('END OF FUNCTION CALL')
-        #    continue
+        try:
+            if args.method == 'multi':
+                calling_function(pyconda, multi_task_app, tmp_config)
+            elif args.method == 'class':
+                calling_function(pyconda, class_app, tmp_config)
+            else:
+                calling_function(pyconda, reg_app, tmp_config)
+
+        except:
+            print('END OF FUNCTION CALL')
+            continue
 

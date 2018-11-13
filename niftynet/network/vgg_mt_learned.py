@@ -148,7 +148,11 @@ class LearnedMTVGG16Net(BaseNet):
         # Gumbel-Softmax temperature annealing
         if use_annealing:
             # anneal every iter
-            tau = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=tau_ini, min_temp=0.5)
+            if is_training:
+                tau = 0.05
+            else:
+                tau = gumbel_softmax_decay(current_iter, 1e-5, max_temp=1.0, min_temp=0.05)
+            tau = tf.Print(tau, [tau])
         else:
             tau = tau_ini
 

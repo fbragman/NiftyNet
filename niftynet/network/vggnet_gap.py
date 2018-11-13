@@ -43,16 +43,18 @@ class VGG16Net(BaseNet):
             acti_func=acti_func,
             name=name)
 
+        scale = 4
+
         self.layers = [
-            {'name': 'layer_1', 'n_features': 64, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_1', 'n_features': int(64/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_2', 'n_features': int(128/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': 256, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_3', 'n_features': int(256/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_4', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': 512, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'layer_5', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'gap'},
             {'name': 'fc', 'n_features': self.num_classes}]
 

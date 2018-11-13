@@ -67,9 +67,9 @@ def calculate_best_val_loss(val_lines, str_1, str_2, save_path, recip):
             loss_val_2.append(0)
 
     # Smooth both loss val
-    filtered_1 = scipy.ndimage.filters.gaussian_filter1d(loss_val_1, sigma=5)
+    filtered_1 = scipy.ndimage.filters.median_filter(loss_val_1, size=50)
     if str_2 is not None:
-        filtered_2 = scipy.ndimage.filters.gaussian_filter1d(loss_val_2, sigma=5)
+        filtered_2 = scipy.ndimage.filters.median_filter(loss_val_2, size=50)
     else:
         filtered_2 = loss_val_2
 
