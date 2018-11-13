@@ -92,6 +92,7 @@ class LearnedMTVGG16Net(BaseNet):
         max_tau = unused_kwargs['initial_tau']
         gs_anneal_r = unused_kwargs['gs_anneal_r']
         use_annealing = unused_kwargs['use_tau_annealing']
+        min_temp = unused_kwargs['min_temp']
 
         # main network graph
         with tf.variable_scope('vgg_body'):
@@ -100,7 +101,7 @@ class LearnedMTVGG16Net(BaseNet):
                                                group_connection, use_annealing,
                                                gs_anneal_r, max_tau,
                                                use_hardcat, learn_cat,
-                                               init_cat, constant_grouping)
+                                               init_cat, constant_grouping, min_temp)
 
         if group_connection == 'separate':
             grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
