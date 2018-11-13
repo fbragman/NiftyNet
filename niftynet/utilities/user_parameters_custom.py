@@ -398,7 +398,7 @@ def __add_multitask_args(parser):
         "--min_temp",
         help="[Method option] Min temperature in anneal",
         type=float,
-        default=0.5
+        default=0.05
     )
 
     parser.add_argument(

@@ -402,7 +402,7 @@ class MultiTaskApplication(BaseApplication):
             current_iter = tf.constant(1)
 
             # Optional arguments
-            net_args = {'is_training': True,
+            net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
                         'group_connection': self.multitask_param.group_connection,
@@ -412,7 +412,9 @@ class MultiTaskApplication(BaseApplication):
                         'learn_categorical': self.multitask_param.learn_categorical,
                         'init_categorical': self.multitask_param.init_categorical,
                         'use_hardcat': self.multitask_param.use_hardcat,
-                        'constant_grouping': self.multitask_param.constant_grouping}
+                        'constant_grouping': self.multitask_param.constant_grouping,
+                        'min_temp': self.multitask_param.min_temp
+                        }
 
             net_out, categoricals = self.net(image, **net_args)
             net_out_task_1 = net_out[0]

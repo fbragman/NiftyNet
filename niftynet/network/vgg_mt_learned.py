@@ -83,16 +83,18 @@ class LearnedMTVGG16Net(BaseNet):
         current_iter = unused_kwargs['current_iter']
         # type of connection
         group_connection = unused_kwargs['group_connection']
+
         # categorical learning options
         init_cat = unused_kwargs['init_categorical']
         use_hardcat = unused_kwargs['use_hardcat']
         learn_cat = unused_kwargs['learn_categorical']
         constant_grouping = unused_kwargs['constant_grouping']
+
         # gumbel-softmax options
         max_tau = unused_kwargs['initial_tau']
+        min_tau = unused_kwargs['min_temp']
         gs_anneal_r = unused_kwargs['gs_anneal_r']
         use_annealing = unused_kwargs['use_tau_annealing']
-        min_temp = unused_kwargs['min_temp']
 
         # main network graph
         with tf.variable_scope('vgg_body'):
@@ -101,7 +103,7 @@ class LearnedMTVGG16Net(BaseNet):
                                                group_connection, use_annealing,
                                                gs_anneal_r, max_tau,
                                                use_hardcat, learn_cat,
-                                               init_cat, constant_grouping, min_temp)
+                                               init_cat, constant_grouping, min_tau)
 
         if group_connection == 'separate':
             grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
@@ -149,11 +151,11 @@ class LearnedMTVGG16Net(BaseNet):
         # Gumbel-Softmax temperature annealing
         if use_annealing:
             # anneal every iter
-            if is_training:
+            if not is_training:
                 tau = 0.05
             else:
                 tau = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=1.0, min_temp=min_temp)
-            tau = tf.Print(tau, [tau])
+                tau = tf.Print(tau, [tau])
         else:
             tau = tau_ini
 
