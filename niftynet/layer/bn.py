@@ -19,7 +19,7 @@ class BNLayer(TrainableLayer):
 
     def __init__(self,
                  regularizer=None,
-                 moving_decay=0.9,
+                 moving_decay=0.99,
                  eps=1e-5,
                  name='batch_norm'):
         super(BNLayer, self).__init__(name=name)
@@ -68,6 +68,11 @@ class BNLayer(TrainableLayer):
 
         # mean and var
         mean, variance = tf.nn.moments(inputs, axes)
+
+        # mask them based on hard or soft mask
+        mean = mean * kernel_mask
+        variance = variance * kernel_mask
+
         update_moving_mean = moving_averages.assign_moving_average(
             moving_mean, mean, self.moving_decay).op
         update_moving_variance = moving_averages.assign_moving_average(
