@@ -58,12 +58,15 @@ if __name__ == "__main__":
     config = configparser.RawConfigParser()
     config.read(args.config_path)
 
+    print(args.config_path)
+
     if args.training_iter is None:
         # get best iteration from validation loss
         model_dir = config.get('SYSTEM', 'model_dir')
 
         log_path = model_dir
         ckpoint_path = os.path.join(model_dir, 'models')
+        print(log_path)
         args.training_iter = analyse_validation_loss(log_path, ckpoint_path, int(args.tasks))
         print('Inference on {} iteration'.format(args.training_iter))
 
