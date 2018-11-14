@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+
 class Dirichlet(object):
 
     def __init__(self, mean, precision, batch_size=1, num_samples=1):
@@ -75,6 +76,18 @@ class HardCategorical(object):
 
         cat_mask = tf.constant(onehot, dtype=tf.float32)
         return cat_mask
+
+
+class Categorical(object):
+
+    def __init__(self, probabilities):
+
+        self.cat = tf.distributions.Categorical(probs=probabilities)
+
+    def __call__(self):
+
+        samples = self.cat.sample()
+        return tf.one_hot(samples, depth=3)
 
 
 class GumbelSoftmax(object):

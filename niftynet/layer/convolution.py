@@ -10,7 +10,7 @@ from niftynet.layer.base_layer import TrainableLayer
 from niftynet.layer.bn import BNLayer
 from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
-from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical
+from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical, Categorical
 from niftynet.layer import group_ops
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
@@ -1107,17 +1107,24 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
         else:
             if self.categorical:
-                # sample x|p ~ Cat(p)
+                if is_training:
+                    # sample x|p ~ Cat(p)
 
-                # Run if sampling from a categorical
-                # Can be if learning p (learn_cat=True) or constant p (learn_cat=False)
-                with tf.variable_scope('categorical_sampling'):
-                    # Create object for categorical
-                    cat_dist = GumbelSoftmax(dirichlet_p, tau)
+                    # Run if sampling from a categorical
+                    # Can be if learning p (learn_cat=True) or constant p (learn_cat=False)
+                    with tf.variable_scope('categorical_sampling'):
+                        # Create object for categorical
+                        cat_dist = GumbelSoftmax(dirichlet_p, tau)
 
-                    # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
-                    cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
+                        # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
+                        cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
+                        cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+                else:
+                    # sample from Cat(p) - do not need approximation
+                    cat_dist = Categorical(dirichlet_p)
+                    cat_mask = cat_dist()
                     cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+
             else:
                 # soft weighting using p
                 with tf.variable_scope('soft_weight_masks'):
