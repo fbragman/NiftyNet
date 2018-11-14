@@ -37,9 +37,9 @@ def find_latest_checkpoint(args):
     return model_max_number
 
 
-def calling_function(pyconda, multi_task_app, tmp_config):
+def calling_function(multi_task_app, tmp_config):
 
-    system_command = [pyconda, multi_task_app, 'inference', '-c', tmp_config]
+    system_command = ['python3', multi_task_app, 'inference', '-c', tmp_config]
     print(system_command)
     call(system_command)
 
@@ -49,8 +49,6 @@ if __name__ == "__main__":
     multi_task_app = '/home/fbragman/code/NiftyNet/net_multitask.py'
     reg_app = '/home/fbragman/code/NiftyNet/net_regress.py'
     class_app = '/home/fbragman/code/NiftyNet/net_classify.py'
-
-    pyconda = '/home/fbragman/miniconda3/envs/tf_d/bin/python'
 
     args = get_user_params()
     extra_args = []
@@ -119,11 +117,11 @@ if __name__ == "__main__":
 
         try:
             if args.method == 'multi':
-                calling_function(pyconda, multi_task_app, tmp_config)
+                calling_function(multi_task_app, tmp_config)
             elif args.method == 'class':
-                calling_function(pyconda, class_app, tmp_config)
+                calling_function(class_app, tmp_config)
             else:
-                calling_function(pyconda, reg_app, tmp_config)
+                calling_function(reg_app, tmp_config)
 
         except:
             print('END OF FUNCTION CALL')
