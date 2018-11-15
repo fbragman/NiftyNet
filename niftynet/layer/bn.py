@@ -70,8 +70,9 @@ class BNLayer(TrainableLayer):
         mean, variance = tf.nn.moments(inputs, axes)
 
         # mask them based on hard or soft mask
-        mean = mean * kernel_mask
-        variance = variance * kernel_mask
+        if kernel_mask is not None:
+            mean = mean * kernel_mask
+            variance = variance * kernel_mask
 
         update_moving_mean = moving_averages.assign_moving_average(
             moving_mean, mean, self.moving_decay).op

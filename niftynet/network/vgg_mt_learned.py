@@ -109,11 +109,18 @@ class LearnedMTVGG16Net(BaseNet):
             grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
             grouped_flow[2] = grouped_flow[2] + grouped_flow[1]
 
+        # get last layer clustering
+        #last_cats = cats[-1][1]
+        # merge
+        #task_1_mask = last_cats[0] + last_cats[1]
+        #task_2_mask = last_cats[2] + last_cats[1]
+
         # add task 1 output
         task1_layer = self.task1_layers
         with tf.variable_scope('task_1_fc'):
             fc_layer = FullyConnectedLayer(
                 n_output_chns=task1_layer['n_features'],
+                with_bn=False,
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
@@ -125,6 +132,7 @@ class LearnedMTVGG16Net(BaseNet):
         with tf.variable_scope('task_2_fc'):
             fc_layer = FullyConnectedLayer(
                 n_output_chns=task2_layer['n_features'],
+                with_bn=False,
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
