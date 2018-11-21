@@ -283,6 +283,7 @@ class MultiTaskApplication(BaseApplication):
 
             # Optional arguments
             net_args = {'is_training': self.is_training,
+                        'is_validation': self.is_validation,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
                         'group_connection': self.multitask_param.group_connection,

@@ -71,6 +71,8 @@ class BNLayer(TrainableLayer):
 
         # mask them based on hard or soft mask
         if kernel_mask is not None:
+            # normalise kernel_mask by sum
+            kernel_mask = kernel_mask / tf.reduce_sum(kernel_mask)
             mean = mean * kernel_mask
             variance = variance * kernel_mask
 
