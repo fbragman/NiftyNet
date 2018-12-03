@@ -19,7 +19,7 @@ class BNLayer(TrainableLayer):
 
     def __init__(self,
                  regularizer=None,
-                 moving_decay=0.99,
+                 moving_decay=0.9,
                  eps=1e-5,
                  name='batch_norm'):
         super(BNLayer, self).__init__(name=name)
@@ -69,13 +69,6 @@ class BNLayer(TrainableLayer):
         # mean and var
         mean, variance = tf.nn.moments(inputs, axes)
 
-        # mask them based on hard or soft mask
-        if kernel_mask is not None:
-            # normalise kernel_mask by sum
-            kernel_mask = kernel_mask / tf.reduce_sum(kernel_mask)
-            mean = mean * kernel_mask
-            variance = variance * kernel_mask
-
         update_moving_mean = moving_averages.assign_moving_average(
             moving_mean, mean, self.moving_decay).op
         update_moving_variance = moving_averages.assign_moving_average(
@@ -91,34 +84,14 @@ class BNLayer(TrainableLayer):
                 inputs, mean, variance,
                 beta, gamma, self.eps, name='batch_norm')
         else:
+            # only need to do mean since if sparse and mean is 0, we have 0/variance
+            moving_mean = moving_mean * kernel_mask
+
             outputs = tf.nn.batch_normalization(
                 inputs, moving_mean, moving_variance,
                 beta, gamma, self.eps, name='batch_norm')
         outputs.set_shape(inputs.get_shape())
         return outputs
-
-        # # Regularizers are not currently supported for fused batch norm.
-        # return tf.contrib.layers.batch_norm(
-        #     inputs,
-        #     decay=self.moving_decay,
-        #     center=True,
-        #     scale=True,
-        #     epsilon=self.eps,
-        #     activation_fn=None,
-        #     param_initializers=self.initializers,
-        #     param_regularizers=self.regularizers,
-        #     updates_collections=tf.GraphKeys.UPDATE_OPS,
-        #     is_training=is_training,
-        #     reuse=None,
-        #     variables_collections=[tf.GraphKeys.MOVING_AVERAGE_VARIABLES,
-        #                            tf.GraphKeys.GLOBAL_VARIABLES],
-        #     outputs_collections=None,
-        #     trainable=True,
-        #     batch_weights=None,
-        #     fused=False,
-        #     data_format='NHWC',
-        #     zero_debias_moving_mean=False,
-        #     scope=None)
 
 
 class InstanceNormLayer(TrainableLayer):
