@@ -193,6 +193,7 @@ class LearnedMTVGG16Net(BaseNet):
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                     name=layer['name'])
+
                 grouped_flow, learned_mask, d_p = conv_layer(images, tau, is_training)
                 layer_instances.append((conv_layer, grouped_flow))
                 mask_instances.append((d_p, learned_mask))
