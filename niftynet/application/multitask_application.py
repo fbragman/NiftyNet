@@ -632,8 +632,6 @@ class MultiTaskApplication(BaseApplication):
 
         elif self.multitask_param.task_2_type == 'regression':
 
-            print('MAE output')
-
             mae_loss = RegLossFunction(loss_type='MAE')
             data_loss_task_2 = mae_loss(
                 prediction=net_out[1],
