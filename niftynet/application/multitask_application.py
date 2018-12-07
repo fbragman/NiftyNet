@@ -40,6 +40,8 @@ from niftynet.layer.rand_spatial_scaling import RandomSpatialScalingLayer
 from niftynet.evaluation.regression_evaluator import RegressionEvaluator
 from niftynet.layer.rand_elastic_deform import RandomElasticDeformationLayer
 
+import math
+
 SUPPORTED_INPUT = set(['image', 'output_1', 'output_2', 'weight', 'sampler'])
 
 
@@ -325,8 +327,6 @@ class MultiTaskApplication(BaseApplication):
             weight_map = None if weight_map is None else crop_layer(weight_map)
 
             # determine whether cropping is needed (1x1 label image or actual dense prediction)
-            print(net_out_task_1)
-            print(data_dict['output_1'])
             if len(net_out_task_1.shape) < 3:
                 data_loss_task_1 = loss_func_task_1(
                     prediction=net_out_task_1,
@@ -337,6 +337,22 @@ class MultiTaskApplication(BaseApplication):
                     ground_truth=crop_layer(data_dict['output_1']),
                     weight_map=weight_map)
 
+                outputs_collector.add_to_collection(
+                    var=tf.contrib.image.rotate(
+                        255 * (crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1']))) /
+                        (tf.reduce_max(crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1'])))),
+                        math.pi / 2), name='task_1/gt',
+                    average_over_devices=True, summary_type='image3_axial',
+                    collection=TF_SUMMARIES)
+
+                outputs_collector.add_to_collection(
+                    var=tf.contrib.image.rotate(
+                        255 * (crop_layer(net_out_task_1) - tf.reduce_min(crop_layer(net_out_task_1))) /
+                        (tf.reduce_max(crop_layer(net_out_task_1) - tf.reduce_min(crop_layer(net_out_task_1)))),
+                        math.pi / 2), name='task_1/prediction',
+                    average_over_devices=True, summary_type='image3_axial',
+                    collection=TF_SUMMARIES)
+
             if len(net_out_task_2.shape) < 3:
                 data_loss_task_2 = loss_func_task_2(
                     prediction=net_out_task_2,
@@ -344,8 +360,27 @@ class MultiTaskApplication(BaseApplication):
             else:
                 data_loss_task_2 = loss_func_task_2(
                     prediction=crop_layer(net_out_task_2),
-                    ground_truth=crop_layer(data_dict['output_2']),
-                    weight_map=weight_map)
+                    ground_truth=crop_layer(data_dict['output_2']))
+
+                outputs_collector.add_to_collection(
+                    var=tf.contrib.image.rotate(
+                        255 * (crop_layer(data_dict['output_2']) - tf.reduce_min(crop_layer(data_dict['output_2']))) /
+                        (tf.reduce_max(crop_layer(data_dict['output_2']) - tf.reduce_min(crop_layer(data_dict['output_2'])))),
+                        math.pi / 2), name='task_2/gt',
+                    average_over_devices=True, summary_type='image3_axial',
+                    collection=TF_SUMMARIES)
+
+                post_process_layer = PostProcessingLayer(
+                    'ARGMAX', num_classes=self.multitask_param.num_classes[1])
+                prediction_task_2 = post_process_layer(crop_layer(net_out_task_2))
+
+                outputs_collector.add_to_collection(
+                    var=tf.contrib.image.rotate(
+                        255 * (prediction_task_2 - tf.reduce_min(prediction_task_2)) /
+                        (tf.reduce_max(prediction_task_2 - tf.reduce_min(prediction_task_2))),
+                        math.pi / 2), name='task_2/prediction',
+                    average_over_devices=True, summary_type='image3_axial',
+                    collection=TF_SUMMARIES)
 
             # Multi-task loss
             data_loss = data_loss_task_1 + data_loss_task_2
@@ -625,6 +660,26 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
+        elif self.multitask_param.task_1_type == 'segmentation':
+
+            dice_loss = SegLossFunction(n_class=self.multitask_param.num_classes[0],
+                                        loss_type='Dice')
+
+            reporting_string = 'task_1_dice'
+
+            data_loss_task_1 = dice_loss(
+                prediction=net_out[0],
+                ground_truth=data_dict['output_1'])
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_1, name=reporting_string,
+                average_over_devices=False, collection=CONSOLE)
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_1, name=reporting_string,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
+
         if self.multitask_param.task_2_type == 'classification':
             self.add_classification_statistics_(outputs_collector, net_out[1],
                                                 self.multitask_param.num_classes[1],
@@ -648,6 +703,25 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
+        elif self.multitask_param.task_2_type == 'segmentation':
+
+            dice_loss = SegLossFunction(n_class=self.multitask_param.num_classes[1],
+                                        loss_type='Dice')
+
+            reporting_string = 'task_2_dice'
+
+            data_loss_task_2 = dice_loss(
+                prediction=net_out[1],
+                ground_truth=data_dict['output_2'])
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_2, name=reporting_string,
+                average_over_devices=False, collection=CONSOLE)
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_2, name=reporting_string,
+                average_over_devices=True, summary_type='scalar',
+                collection=TF_SUMMARIES)
 
     def interpret_output(self, batch_output):
         if self.is_inference:
