@@ -915,6 +915,21 @@ class GroupSharedConvolutionalLayer(TrainableLayer):
         return output_tensor
 
 
+class LearnedCategoricalMasking(TrainableLayer):
+    """
+    Same as LearnedCategoricalGroupConvolutionalLayer BUT
+
+    1)  Learn masks for routing rather than clustering kernels
+
+    Method:
+
+        i) Learn x ~ Cat(p)
+        ii) Create masks from x
+        iii) Determine
+
+    """
+
+
 class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
     """
     This class defines a composite layer with optional components::
