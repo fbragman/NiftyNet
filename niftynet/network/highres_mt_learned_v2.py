@@ -16,21 +16,25 @@ from niftynet.network.base_net import BaseNet
 
 import tensorflow as tf
 
-class HighRes3DNet(BaseNet):
+class LearnedMTHighRes3DNet2(BaseNet):
 
     ## learned clustering at all layers, including between residual blocks
 
     def __init__(self,
                  num_classes,
+                 layer_scale,
+                 p_init,
                  w_initializer=None,
                  w_regularizer=None,
                  b_initializer=None,
                  b_regularizer=None,
                  acti_func='prelu',
-                 name='HighRes3DNet'):
+                 name='LearnedMTHighRes3DNet2'):
 
-        super(HighRes3DNet, self).__init__(
+        super(LearnedMTHighRes3DNet2, self).__init__(
             num_classes=num_classes,
+            layer_scale=layer_scale,
+            p_init=p_init,
             w_initializer=w_initializer,
             w_regularizer=w_regularizer,
             b_initializer=b_initializer,
@@ -38,13 +42,19 @@ class HighRes3DNet(BaseNet):
             acti_func=acti_func,
             name=name)
 
+        scale = self.layer_scale
+
         self.layers = [
-            {'name': 'conv_0', 'n_features': 16, 'kernel_size': 3},
-            {'name': 'res_1', 'n_features': 16, 'kernels': (3, 3), 'repeat': 3},
-            {'name': 'res_2', 'n_features': 32, 'kernels': (3, 3), 'repeat': 3},
-            {'name': 'res_3', 'n_features': 64, 'kernels': (3, 3), 'repeat': 3},
-            {'name': 'conv_1', 'n_features': 80, 'kernel_size': 1},
-            {'name': 'conv_2', 'n_features': num_classes, 'kernel_size': 1}]
+            {'name': 'conv_0', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'res_1', 'n_features': int(16*scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_1', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'res_2', 'n_features': int(32*scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_0', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'res_3', 'n_features': int(64*scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_2', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_3', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'task_1_out', 'n_features': num_classes[0], 'kernel_size': 1},
+            {'name': 'task_2_out', 'n_features': num_classes[1], 'kernel_size': 1}]
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
         assert layer_util.check_spatial_dims(
@@ -52,6 +62,24 @@ class HighRes3DNet(BaseNet):
         # go through self.layers, create an instance of each layer
         # and plugin data
         layer_instances = []
+        cat_instances = []
+
+        current_iter = unused_kwargs['current_iter']
+
+        ### annealing of tau
+        use_annealing = unused_kwargs['use_tau_annealing']
+        max_tau = unused_kwargs['initial_tau']
+        min_tau = unused_kwargs['min_temp']
+        gs_anneal_r = unused_kwargs['gs_anneal_r']
+        if use_annealing:
+            # anneal every iter
+            if not is_training:
+                tau_val = 0.05
+            else:
+                tau_val = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=max_tau, min_temp=min_tau)
+                tau_val = tf.Print(tau_val, [tau_val])
+        else:
+            tau_val = max_tau
 
         ### first convolution layer
         params = self.layers[0]
@@ -60,16 +88,17 @@ class HighRes3DNet(BaseNet):
             kernel_size=params['kernel_size'],
             categorical=True,
             use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_cat'],
+            learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
-            init_cat=unused_kwargs['init_cat'],
+            init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(images, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
+        cat_instances.append((d_p, learned_mask))
 
         # Output of grouped_flow is a list: [task_1, shared, task_2]
         # where task_1 = task_1 + shared
@@ -99,10 +128,29 @@ class HighRes3DNet(BaseNet):
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
-        ### resblocks, all kernels dilated by 2
         params = self.layers[2]
+        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            categorical=True,
+            use_hardcat=unused_kwargs['use_hardcat'],
+            learn_cat=unused_kwargs['learn_categorical'],
+            p_init=self.p_init,
+            init_cat=unused_kwargs['init_categorical'],
+            constant_grouping=unused_kwargs['constant_grouping'],
+            group_connection=unused_kwargs['group_connection'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        layer_instances.append((conv_layer, grouped_flow))
+        cat_instances.append((d_p, learned_mask))
+
+        ### resblocks, all kernels dilated by 2
+        params = self.layers[3]
         clustered_res_block = []
-        for clustered_tensor in output_res_blocks:
+        for clustered_tensor in grouped_flow:
             with DilatedTensor(clustered_tensor, dilation_factor=2) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -122,10 +170,29 @@ class HighRes3DNet(BaseNet):
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
+        params = self.layers[4]
+        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            categorical=True,
+            use_hardcat=unused_kwargs['use_hardcat'],
+            learn_cat=unused_kwargs['learn_categorical'],
+            p_init=self.p_init,
+            init_cat=unused_kwargs['init_categorical'],
+            constant_grouping=unused_kwargs['constant_grouping'],
+            group_connection=unused_kwargs['group_connection'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        layer_instances.append((conv_layer, grouped_flow))
+        cat_instances.append((d_p, learned_mask))
+
         ### resblocks, all kernels dilated by 4
-        params = self.layers[3]
+        params = self.layers[5]
         clustered_res_block = []
-        for clustered_tensor in output_res_blocks:
+        for clustered_tensor in grouped_flow:
             with DilatedTensor(clustered_tensor, dilation_factor=4) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -145,66 +212,79 @@ class HighRes3DNet(BaseNet):
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
-        ### 1x1x1 convolution layer
-        params = self.layers[4]
+        params = self.layers[6]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             categorical=True,
             use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_cat'],
+            learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
-            init_cat=unused_kwargs['init_cat'],
+            init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
         layer_instances.append((conv_layer, grouped_flow))
+        cat_instances.append((d_p, learned_mask))
+
+        params = self.layers[7]
+        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            categorical=True,
+            use_hardcat=unused_kwargs['use_hardcat'],
+            learn_cat=unused_kwargs['learn_categorical'],
+            p_init=self.p_init,
+            init_cat=unused_kwargs['init_categorical'],
+            constant_grouping=unused_kwargs['constant_grouping'],
+            group_connection=unused_kwargs['group_connection'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+        layer_instances.append((conv_layer, grouped_flow))
+        cat_instances.append((d_p, learned_mask))
 
         ### 1x1x1 convolution layer
-        params = self.layers[5]
-        conv_layer_task_1 = LearnedCategoricalGroupConvolutionalLayer(
-                n_output_chns=params['n_features'],
-                kernel_size=params['kernel_size'],
-                categorical=True,
-                use_hardcat=unused_kwargs['use_hardcat'],
-                learn_cat=unused_kwargs['learn_cat'],
-                p_init=self.p_init,
-                init_cat=unused_kwargs['init_cat'],
-                constant_grouping=unused_kwargs['constant_grouping'],
-                group_connection=unused_kwargs['group_connection'],
-                acti_func=self.acti_func,
-                w_initializer=self.initializers['w'],
-                w_regularizer=self.regularizers['w'],
-                name=params['name'])
-        task_1_output, learned_mask, d_p = conv_layer_task_1(grouped_flow[0], is_training)
-        layer_instances.append((conv_layer, task_1_output))
+        params = self.layers[8]
+        fc_layer_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=None,
+            with_bn=False,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        task_1_output = fc_layer_1(grouped_flow[0], is_training)
+        layer_instances.append((fc_layer_1, task_1_output))
 
-        conv_layer_task_2 = LearnedCategoricalGroupConvolutionalLayer(
-                n_output_chns=params['n_features'],
-                kernel_size=params['kernel_size'],
-                categorical=True,
-                use_hardcat=unused_kwargs['use_hardcat'],
-                learn_cat=unused_kwargs['learn_cat'],
-                p_init=self.p_init,
-                init_cat=unused_kwargs['init_cat'],
-                constant_grouping=unused_kwargs['constant_grouping'],
-                group_connection=unused_kwargs['group_connection'],
-                acti_func=self.acti_func,
-                w_initializer=self.initializers['w'],
-                w_regularizer=self.regularizers['w'],
-                name=params['name'])
-        task_2_output, learned_mask, d_p = conv_layer_task_2(grouped_flow[-1], is_training)
-        layer_instances.append((conv_layer, task_2_output))
+        params = self.layers[9]
+        fc_layer_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=None,
+            with_bn=False,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        task_2_output = fc_layer_2(grouped_flow[-1], is_training)
+        layer_instances.append((fc_layer_2, task_2_output))
+
+        net_out = [task_1_output, task_2_output]
 
         # set training properties
         if is_training:
             self._print(layer_instances)
-            return [task_1_output, task_2_output]
-        return layer_instances[layer_id][1]
+            cat_ps = [x[0] for x in cat_instances]
+            return net_out, cat_ps
+
+        cat_ps = [x[0] for x in cat_instances]
+        return net_out, cat_ps
 
     def _print(self, list_of_layers):
         for (op, _) in list_of_layers:
