@@ -85,7 +85,8 @@ class BNLayer(TrainableLayer):
                 beta, gamma, self.eps, name='batch_norm')
         else:
             # only need to do mean since if sparse and mean is 0, we have 0/variance
-            moving_mean = moving_mean * kernel_mask
+            if kernel_mask is not None:
+                moving_mean = moving_mean * kernel_mask
 
             outputs = tf.nn.batch_normalization(
                 inputs, moving_mean, moving_variance,
