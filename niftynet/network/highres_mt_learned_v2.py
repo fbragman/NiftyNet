@@ -104,11 +104,15 @@ class LearnedMTHighRes3DNet2(BaseNet):
         # where task_1 = task_1 + shared
         #       task_2 = task_2 + shared
 
+        # Need to pass learned_mask to each successive residual block
+        # If is_training=False, learned_mask <- Categorical draw
+        # Pass sparse tensors to residual blocks which need sparse BN vectors
+
         ### resblocks, all kernels dilated by 1 (normal convolution) on sparse tensors
         params = self.layers[1]
         # iterate over clustered activation maps
         clustered_res_block = []
-        for clustered_tensor in grouped_flow:
+        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
             with DilatedTensor(clustered_tensor, dilation_factor=1) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -118,7 +122,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training)
+                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -150,7 +154,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
         ### resblocks, all kernels dilated by 2
         params = self.layers[3]
         clustered_res_block = []
-        for clustered_tensor in grouped_flow:
+        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
             with DilatedTensor(clustered_tensor, dilation_factor=2) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -160,7 +164,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training)
+                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -192,7 +196,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
         ### resblocks, all kernels dilated by 4
         params = self.layers[5]
         clustered_res_block = []
-        for clustered_tensor in grouped_flow:
+        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
             with DilatedTensor(clustered_tensor, dilation_factor=4) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -202,7 +206,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training)
+                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -326,7 +330,7 @@ class HighResBlock(TrainableLayer):
         self.initializers = {'w': w_initializer}
         self.regularizers = {'w': w_regularizer}
 
-    def layer_op(self, input_tensor, is_training):
+    def layer_op(self, input_tensor, is_training, mask=None):
         output_tensor = input_tensor
         for (i, k) in enumerate(self.kernels):
             # create parameterised layers
@@ -342,7 +346,10 @@ class HighResBlock(TrainableLayer):
                                 w_regularizer=self.regularizers['w'],
                                 name='conv_{}'.format(i))
             # connect layers
-            output_tensor = bn_op(output_tensor, is_training)
+            if mask is None:
+                output_tensor = bn_op(output_tensor, is_training)
+            else:
+                output_tensor = bn_op(output_tensor, is_training, kernel_mask=mask)
             output_tensor = acti_op(output_tensor)
             output_tensor = conv_op(output_tensor)
         # make residual connections
