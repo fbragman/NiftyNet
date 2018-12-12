@@ -77,6 +77,8 @@ SUPPORTED_NETWORK = {
     "highres_mt_learned": 'niftynet.network.highres_mt_learned.LearnedMTHighRes3DNet',
     "highres_mt_learned_2": 'niftynet.network.highres_mt_learned_v2.LearnedMTHighRes3DNet2',
 
+    "highres_mt_vanilla": 'niftynet.network.highres_mt_vanilla.VanillaMTHigh',
+
     # autoencoder
     "vae": 'niftynet.network.vae.VAE'
 }
