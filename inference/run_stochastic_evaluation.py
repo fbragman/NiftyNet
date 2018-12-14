@@ -1,10 +1,11 @@
 import argparse
 import os
 import pandas as pd
-from evaluation import get_data, get_prediction_parallel
+from inference.evaluation import get_prediction_parallel
 import time
 import numpy as np
 from scipy import stats
+
 from sklearn.metrics import accuracy_score
 
 
@@ -26,13 +27,36 @@ def calculate_mae(results):
         vals = res[1:]
         # destroy -69.69 if exist
         vals = np.delete(vals, np.argwhere(vals == -69.69))
-        #print(vals*100)
         mean_val = np.mean(vals) * 100
         std_val = np.std(vals) * 100
         mae.append(np.abs(gt_val - mean_val))
         std.append(std_val)
 
     return np.mean(mae), np.mean(std)
+
+
+def calculate_reg_mode(results):
+
+    mae = []
+    it = 0
+    for res in results:
+        gt = res[0]
+        gt_val = float(gt.split('_')[0])
+        vals = res[1:]
+        # destroy -69.69 if exist
+        vals = np.delete(vals, np.argwhere(vals == -69.69))
+        x = np.linspace(np.min(vals), np.max(vals), 1000)
+        kde = stats.kde.gaussian_kde(vals.astype(np.float32), bw_method=2.05)
+        #fig, ax = plt.subplots(1, 1)
+        #ax.plot(x, kde(x))
+        mode = x[np.argsort(kde(x))[-1]]
+        mode_val = 100*mode
+        #print('Mode: {} Mean: {}, GT: {}'.format(100*mode, 100*np.mean(vals), gt_val))
+        mae.append(np.abs(gt_val - mode_val))
+        #plt.savefig('/home/fbragman/documents/tmp/fig_{}.png'.format(it))
+        it += 1
+
+    return np.mean(mae), None
 
 
 def calculate_mode(results):
@@ -94,6 +118,7 @@ def main(path_to_res, num_tasks, t1, t2):
                     print('Accuracy: {}'.format(acc_result))
 
     else:
+
         # loop over results
         for dir_it, dir in enumerate(dirs):
 
@@ -109,14 +134,16 @@ def main(path_to_res, num_tasks, t1, t2):
             patient_uniq = list(set(patient_files))
             patient_uniq = [x for x in patient_uniq if x is not '']
             patient_uniq = [x.split('task')[0] for x in patient_uniq]
-            #patient_uniq = ['_'.join(x.split('_')[:-1]) for x in patient_uniq]
 
             # get task names
             task_names = ['_'.join(x.split('_')[4:]) for x in patient_results]
             task_names = list(set(task_names))
             task_names = [x for x in task_names if x is not '']
             task_names = [x for x in task_names if 'task' in x]
+            #patient_uniq = ['_'.join(x.split('_')[:-1]) for x in patient_uniq]
+
             print(task_names)
+            print('ahaha')
             #task_names = [x.split('_')[1] for x in task_names]
 
             # loop over tasks

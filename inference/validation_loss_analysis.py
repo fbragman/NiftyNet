@@ -10,6 +10,7 @@ def analyse_validation_loss(path_to_log, path_to_checkpoints, task_flag):
 
     while True:
         log_file = join(path_to_log, 'training_niftynet_log')
+        print(log_file)
         # get training data from console output
         validation_lines = get_validation_lines(log_file, task_flag)
 
@@ -170,6 +171,7 @@ def get_validation_lines(log_file, task_flag):
 
         return res_validation_lines
     else:
+        print('log file not found')
         return False
 
 

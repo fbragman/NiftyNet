@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import tensorflow.contrib.image # weird hack when import_meta_graph has KeyError for ImageProjectionTransform
 
 def get_learned_categoricals(path_to_model_checkpoint):
 

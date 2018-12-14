@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 from pathlib import Path
-from validation_loss_analysis import analyse_validation_loss
+from inference.validation_loss_analysis import analyse_validation_loss
 from subprocess import call
 import configparser
 import os
@@ -63,10 +63,8 @@ if __name__ == "__main__":
     if args.training_iter is None:
         # get best iteration from validation loss
         model_dir = config.get('SYSTEM', 'model_dir')
-
         log_path = model_dir
         ckpoint_path = os.path.join(model_dir, 'models')
-        print(log_path)
         args.training_iter = analyse_validation_loss(log_path, ckpoint_path, int(args.tasks))
         print('Inference on {} iteration'.format(args.training_iter))
 

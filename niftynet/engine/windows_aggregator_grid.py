@@ -43,7 +43,7 @@ class GridSamplesAggregator(ImageWindowsAggregator):
         location_init = np.copy(window)
 
         for w in window:
-            window[w], _ = self.crop_batch(window[w], location_init, self.window_border)
+            window[w], _, _ = self.crop_batch(window[w], location_init, self.window_border)
             location_init = np.copy(location)
 
         for batch_id in range(n_samples):

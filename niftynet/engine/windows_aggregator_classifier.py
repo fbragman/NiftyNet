@@ -24,7 +24,7 @@ class ClassifierSamplesAggregator(ImageWindowsAggregator):
                  image_reader,
                  name='image',
                  output_path=os.path.join('.', 'output'),
-                 postfix='_niftynet_out'):
+                 postfix='_task_classification'):
         ImageWindowsAggregator.__init__(
             self, image_reader=image_reader, output_path=output_path)
         self.name = name
