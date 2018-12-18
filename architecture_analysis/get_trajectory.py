@@ -4,6 +4,8 @@ from architecture_analysis.simplex_viz import draw_heat_contours
 import argparse
 from pathlib import Path
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 import matplotlib.pyplot as plt
 
 
@@ -14,9 +16,9 @@ def get_user_params():
     return parser.parse_args()
 
 
-def get_checkpoint_files(path_to_mod):
+def get_checkpoint_files(model_path):
 
-    p = Path(path_to_mod)
+    p = Path(model_path)
     files = ['.'.join(str(x).split('.')) for x in p.glob('model.ckpt-*.meta')]
     files.sort(key=lambda x: int(x.split('-')[-1].split('.')[0]))
     return files
@@ -62,18 +64,19 @@ def main(path_to_mod, path_to_save):
     checkpoint_files = get_checkpoint_files(path_to_mod)
 
     cats_list = []
-    for checkpoint_file in checkpoint_files:
+    for checkpoint_file in [checkpoint_files[-1]]:
         tmp_file = checkpoint_file.split('.meta')[0]
         print('loading {}'.format(checkpoint_file))
         cats, cat_names = get_learned_categoricals(tmp_file)
         cats_list.append(cats)
 
     # for the final iteration
-    create_heatmap_figure(cats_list[-1][0], path_to_save, 'layer_1')
-    create_heatmap_figure(cats_list[-1][1], path_to_save, 'layer_2')
-    create_heatmap_figure(cats_list[-1][2], path_to_save, 'layer_3')
-    create_heatmap_figure(cats_list[-1][3], path_to_save, 'layer_4')
-    create_heatmap_figure(cats_list[-1][4], path_to_save, 'layer_5')
+    create_heatmap_figure(cats_list[0][0], path_to_save, 'layer_1')
+    #create_heatmap_figure(cats_list[-1][0], path_to_save, 'layer_1')
+    #create_heatmap_figure(cats_list[-1][1], path_to_save, 'layer_2')
+    #create_heatmap_figure(cats_list[-1][2], path_to_save, 'layer_3')
+    #create_heatmap_figure(cats_list[-1][3], path_to_save, 'layer_4')
+    #create_heatmap_figure(cats_list[-1][4], path_to_save, 'layer_5')
 
     # for each layer - create image of learning trajectory
     create_trajectory_figure(cats_list, path_to_save, 'layer_1', 0)
@@ -87,7 +90,7 @@ if __name__ == "__main__":
 
     #args = get_user_params()
 
-    path_to_mod = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/midl2019_experiments/model_2_anneal_analysis/param_2/models'
-    res = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/midl2019_experiments/model_2_anneal_analysis/param_2/'
+    res = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/midl2019_experiments/with_dice_x_ent/model_2/hold_0'
+    path_to_mod = os.path.join(res, 'models')
 
     main(path_to_mod, res)
