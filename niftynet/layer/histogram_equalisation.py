@@ -50,7 +50,7 @@ class HistogramEqualisationBinningLayer(DataDependentLayer):
         else:
             image_5d = np.asarray(image, dtype=np.float32)
 
-        normalised = self._normalise(image_5d)
+        normalised = self._equalise_to_int(image_5d)
 
         if isinstance(image, dict):
             image[self.image_name] = normalised
@@ -65,18 +65,20 @@ class HistogramEqualisationBinningLayer(DataDependentLayer):
             tf.logging.info(
                 "normalisation equalisation model ready")
             return
+        mapping = he.create_cdf_mapping_from_arrayfiles(image_list)
+        int_mapping = he.create_int_mapping_from_arrayfiles(image_list[0], cdf_mapping)
+        mapping.update(int_mapping)
 
-        trained_mapping = he.create_mapping_from_arrayfiles(image_list)
-        he.write_mapping(self.model_file, trained_mapping)
+        he.write_mapping(self.model_file, mapping)
 
     def is_ready(self):
         return True if os.path.isfile(self.mapping) else False
 
-    def _normalise(self, img_data):
+    def _equalise_to_int(self, img_data):
 
         if not self.mapping:
             tf.logging.fatal(
-                "calling normaliser with empty mapping,"
+                "calling equaliser with empty mapping,"
                 "probably {} is not loaded".format(self.model_file))
             raise RuntimeError
 
