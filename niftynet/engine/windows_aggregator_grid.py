@@ -14,6 +14,7 @@ from niftynet.engine.windows_aggregator_base import ImageWindowsAggregator
 from niftynet.layer.discrete_label_normalisation import \
     DiscreteLabelNormalisationLayer
 from niftynet.layer.pad import PadLayer
+from niftynet.layer.histogram_equalisation import HistogramEqualisationBinningLayer
 
 
 class GridSamplesAggregator(ImageWindowsAggregator):
@@ -78,6 +79,8 @@ class GridSamplesAggregator(ImageWindowsAggregator):
             if isinstance(layer, PadLayer):
                 self.image_out, _ = layer.inverse_op(self.image_out)
             if isinstance(layer, DiscreteLabelNormalisationLayer):
+                self.image_out, _ = layer.inverse_op(self.image_out)
+            if isinstance(layer, HistogramEqualisationBinningLayer):
                 self.image_out, _ = layer.inverse_op(self.image_out)
         subject_name = self.reader.get_subject_id(self.image_id)
         filename = "{}{}.nii.gz".format(subject_name, self.postfix)

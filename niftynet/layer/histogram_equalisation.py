@@ -17,14 +17,13 @@ import tensorflow as tf
 
 import niftynet.utilities.histogram_equalisation as he
 from niftynet.layer.base_layer import DataDependentLayer
-from niftynet.utilities.util_common import print_progress_bar
+from niftynet.layer.base_layer import Invertible
 
 
-class HistogramEqualisationBinningLayer(DataDependentLayer):
+class HistogramEqualisationBinningLayer(DataDependentLayer, Invertible):
 
     def __init__(self,
                  image_name,
-                 model_dir,
                  model_filename=None,
                  name='float2int'):
         """
@@ -39,7 +38,6 @@ class HistogramEqualisationBinningLayer(DataDependentLayer):
         self.model_file = os.path.abspath(model_filename)
 
         self.image_name = image_name
-        self.model_dir = model_dir
         self.mapping = he.read_mapping_file(self.model_file)
 
     def layer_op(self, image):
@@ -50,13 +48,27 @@ class HistogramEqualisationBinningLayer(DataDependentLayer):
         else:
             image_5d = np.asarray(image, dtype=np.float32)
 
-        normalised = self._equalise_to_int(image_5d)
-
+        result = self._equalise_to_int(image_5d)
         if isinstance(image, dict):
-            image[self.image_name] = normalised
+            image[self.image_name] = result
             return image
         else:
-            return normalised
+            return result
+
+    def inverse_op(self, image):
+        assert self.is_ready(), \
+            "histogram equalisation layer needs to be trained first."
+        if isinstance(image, dict):
+            image_5d = np.asarray(image[self.image_name], dtype=np.float32)
+        else:
+            image_5d = np.asarray(image, dtype=np.float32)
+
+        result = self._int_to_deequalise(image_5d)
+        if isinstance(image, dict):
+            image[self.image_name] = result
+            return image
+        else:
+            return result
 
     def train(self, image_list):
         # check modalities to train, using the first subject in subject list
@@ -66,13 +78,17 @@ class HistogramEqualisationBinningLayer(DataDependentLayer):
                 "normalisation equalisation model ready")
             return
         mapping = he.create_cdf_mapping_from_arrayfiles(image_list)
-        int_mapping = he.create_int_mapping_from_arrayfiles(image_list[0], cdf_mapping)
+        int_mapping = he.create_int_mapping_from_arrayfiles(image_list[0], mapping)
         mapping.update(int_mapping)
 
         he.write_mapping(self.model_file, mapping)
 
     def is_ready(self):
         return True if os.path.isfile(self.mapping) else False
+
+    def _int_to_deequalise(self, img_data):
+
+        return he.transform_by_inverse_mapping(img_data, self.mapping)
 
     def _equalise_to_int(self, img_data):
 

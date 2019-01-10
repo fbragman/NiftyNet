@@ -19,6 +19,8 @@ from niftynet.layer.discrete_label_normalisation import \
     DiscreteLabelNormalisationLayer
 from niftynet.layer.histogram_normalisation import \
     HistogramNormalisationLayer
+from niftynet.layer.histogram_equalisation import \
+    HistogramEqualisationBinningLayer
 from niftynet.layer.loss_segmentation import LossFunction
 from niftynet.layer.mean_variance_normalisation import \
     MeanVarNormalisationLayer

@@ -132,6 +132,7 @@ def create_cdf_mapping_from_arrayfiles(array_files):
 
     return mapping
 
+
 def write_mapping(mapping_file, mapping):
 
     # backup existing file first
