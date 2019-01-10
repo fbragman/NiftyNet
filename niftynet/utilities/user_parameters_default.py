@@ -24,6 +24,7 @@ DEFAULT_INFERENCE_OUTPUT = os.path.join('.', 'output')
 DEFAULT_EVALUATION_OUTPUT = os.path.join('.', 'evaluation')
 DEFAULT_DATASET_SPLIT_FILE = os.path.join('.', 'dataset_split.csv')
 DEFAULT_HISTOGRAM_REF_FILE = os.path.join('.', 'histogram_ref_file.txt')
+DEFAULT_HISTOGRAM_EQ_FILE = os.path.join('.', 'histogram_eq_file.txt')
 DEFAULT_MODEL_DIR = None
 DEFAULT_EVENT_HANDLERS = (
     'model_saver',
@@ -356,6 +357,13 @@ def add_network_args(parser):
         default=DEFAULT_HISTOGRAM_REF_FILE)
 
     parser.add_argument(
+        "--histogram_eq_file",
+        metavar='',
+        type=str,
+        help='A reference file for histogram equalisation',
+        default=DEFAULT_HISTOGRAM_EQ_FILE)
+
+    parser.add_argument(
         "--norm_type",
         help="Type of normalisation to perform",
         type=str,
@@ -378,6 +386,12 @@ def add_network_args(parser):
     parser.add_argument(
         "--normalisation",
         help="Indicates if the normalisation must be performed",
+        type=str2boolean,
+        default=False)
+
+    parser.add_argument(
+        "--hist_equalisation",
+        help="Indicates if histogram equalisation and integer binning must be performed on output data",
         type=str2boolean,
         default=False)
 
