@@ -126,9 +126,19 @@ class SegmentationApplication(BaseApplication):
                         model_filename=self.net_param.histogram_ref_file))
                 label_normalisers[-1].key = label_normalisers[0].key
 
+        if self.net_param.histogram_eq_file and self.net_param.hist_equalisation:
+            histogram_eq_layer = HistogramEqualisationBinningLayer(
+                image_name='label',
+                model_filename=self.net_param.histogram_eq_file,
+                name='eq2int')
+        else:
+            histogram_eq_layer = None
+
         normalisation_layers = []
         if histogram_normaliser is not None:
             normalisation_layers.append(histogram_normaliser)
+        if histogram_eq_layer is not None:
+            normalisation_layers.append(histogram_eq_layer)
         if mean_var_normaliser is not None:
             normalisation_layers.append(mean_var_normaliser)
         if task_param.label_normalisation and \

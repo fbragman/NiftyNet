@@ -105,7 +105,7 @@ def create_int_mapping_from_arrayfiles(array_file, mapping):
     return mapping
 
 
-def create_cdf_mapping_from_arrayfiles(array_files):
+def create_cdf_mapping_from_arrayfiles(array_files, field):
     """
     Performs the mapping creation based on a list of files. The cdf for the entire set
     of images is calculated and used to equalise images.
@@ -118,7 +118,7 @@ def create_cdf_mapping_from_arrayfiles(array_files):
         print_progress_bar(i, len(array_files),
                            prefix='histogram equalisation training',
                            decimals=1, length=10, fill='*')
-        tmp_data = p.get_data()
+        tmp_data = p[field].get_data()
         stacked_list.append(tmp_data)
 
     # Concatenate all images
