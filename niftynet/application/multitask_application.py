@@ -353,6 +353,15 @@ class MultiTaskApplication(BaseApplication):
                     average_over_devices=True, summary_type='image3_axial',
                     collection=TF_SUMMARIES)
 
+                error_image = tf.abs(crop_layer(net_out_task_1) - crop_layer(net_out_task_1))
+                outputs_collector.add_to_collection(
+                    var=tf.contrib.image.rotate(
+                        255 * (error_image - tf.reduce_min(error_image)) /
+                        (tf.reduce_max(error_image - tf.reduce_min(error_image))),
+                        math.pi / 2), name='task_1/error',
+                    average_over_devices=True, summary_type='image3_axial',
+                    collection=TF_SUMMARIES)
+
             if len(net_out_task_2.shape) < 3:
                 data_loss_task_2 = loss_func_task_2(
                     prediction=net_out_task_2,
@@ -397,7 +406,6 @@ class MultiTaskApplication(BaseApplication):
 
             # Calculate entropy of categoricals
             if self.multitask_param.learn_categorical:
-                #categoricals_of_network = tf.concat(categoricals, axis=0)
                 categorical_entropy = entropy_loss_by_layer(categoricals)
                 entropy_decay = self.multitask_param.entropy_decay
 
@@ -418,8 +426,6 @@ class MultiTaskApplication(BaseApplication):
                                         net_out,
                                         data_dict)
 
-
-            # collect learned categorical parameters
             if categoricals is not None:
                 self.output_collector_categoricals(outputs_collector,
                                                    categoricals)
