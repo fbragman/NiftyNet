@@ -353,7 +353,7 @@ class MultiTaskApplication(BaseApplication):
                     average_over_devices=True, summary_type='image3_axial',
                     collection=TF_SUMMARIES)
 
-                error_image = tf.abs(crop_layer(net_out_task_1) - crop_layer(net_out_task_1))
+                error_image = tf.abs(tf.subtract(crop_layer(net_out_task_1), crop_layer(net_out_task_1)))
                 outputs_collector.add_to_collection(
                     var=tf.contrib.image.rotate(
                         255 * (error_image - tf.reduce_min(error_image)) /
