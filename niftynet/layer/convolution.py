@@ -106,21 +106,22 @@ class MTConvLayer(TrainableLayer):
             # kernel_group = conv_kernel * task_mask_i
             #                (w x h x d x N) * (N x 1) by broadcasting masks/weights relevant kernels
 
-            # Catch if single tensor is parsed or list of clustered tensors
-            if type(input_tensor) is not list:
+            # Use normalised convolution
+            conv_kernel_masked = conv_kernel * task_mask
+            tensor_conv = tf.nn.convolution(input=input_tensor,
+                                            filter=conv_kernel_masked,
+                                            strides=full_stride,
+                                            dilation_rate=full_dilation,
+                                            padding=self.padding,
+                                            name="activation_conv")
+            mask_conv = tf.nn.convolution(input=task_mask,
+                                          filter=conv_kernel_masked,
+                                          strides=full_stride,
+                                          dilation_rate=full_dilation,
+                                          padding=self.padding,
+                                          name='mask_conv')
+            output_tensor = tf.divide(tensor_conv, mask_conv, name='normed_conv')
 
-                # most likely for first layer when parsing the image
-                conv_kernel_masked = conv_kernel * task_mask
-                output_tensor = tf.nn.convolution(input=input_tensor,
-                                                  filter=conv_kernel_masked,
-                                                  strides=full_stride,
-                                                  dilation_rate=full_dilation,
-                                                  padding=self.padding,
-                                                  name="conv_masked")
-            else:
-
-                # when parsing clustered sparse tensors so task_1_tensor, ..., task_t_tensor, shared_tensor
-                a = 2
 
             # TODO figure out batch-norm, group-norm strategy
 
