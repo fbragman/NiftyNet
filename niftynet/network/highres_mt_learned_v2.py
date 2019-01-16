@@ -127,10 +127,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by concatenation
-        # ResBlock(sparse_Tensor) --> non_sparse_Tensor
-        task_1 = tf.concat([clustered_res_block[0], clustered_res_block[1]], axis=-1)
-        task_2 = tf.concat([clustered_res_block[2], clustered_res_block[1]], axis=-1)
+        # merging of task-specific and task-invariant features by summation since using
+        # normed convolutions
+        task_1 = clustered_res_block[0] + clustered_res_block[1]
+        task_2 = clustered_res_block[2] + clustered_res_block[1]
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
@@ -170,10 +170,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by concatenation
-        # ResBlock(sparse_Tensor) --> non_sparse_Tensor
-        task_1 = tf.concat([clustered_res_block[0], clustered_res_block[1]], axis=-1)
-        task_2 = tf.concat([clustered_res_block[2], clustered_res_block[1]], axis=-1)
+        # merging of task-specific and task-invariant features by summation since using
+        # normed convolutions
+        task_1 = clustered_res_block[0] + clustered_res_block[1]
+        task_2 = clustered_res_block[2] + clustered_res_block[1]
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
@@ -213,10 +213,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by concatenation
-        # ResBlock(sparse_Tensor) --> non_sparse_Tensor
-        task_1 = tf.concat([clustered_res_block[0], clustered_res_block[1]], axis=-1)
-        task_2 = tf.concat([clustered_res_block[2], clustered_res_block[1]], axis=-1)
+        # merging of task-specific and task-invariant features by summation since using
+        # normed convolutions
+        task_1 = clustered_res_block[0] + clustered_res_block[1]
+        task_2 = clustered_res_block[2] + clustered_res_block[1]
         shared = clustered_res_block[1]
         output_res_blocks = [task_1, shared, task_2]
 
