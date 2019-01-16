@@ -361,6 +361,7 @@ class MultiTaskApplication(BaseApplication):
                         math.pi / 2), name='task_1/error',
                     average_over_devices=True, summary_type='image3_axial',
                     collection=TF_SUMMARIES)
+                tf.summary.histogram('task_1/error', error_image)
 
             if len(net_out_task_2.shape) < 3:
                 data_loss_task_2 = loss_func_task_2(
