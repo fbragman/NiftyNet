@@ -8,6 +8,7 @@ from niftynet.layer.activation import ActiLayer
 from niftynet.layer.base_layer import TrainableLayer
 from niftynet.layer.bn import BNLayer
 from niftynet.layer.convolution import ConvLayer, ConvolutionalLayer
+from niftynet.layer.convolution import MTConvLayer
 from niftynet.layer.convolution import LearnedCategoricalGroupConvolutionalLayer
 from niftynet.layer.annealing import gumbel_softmax_decay
 from niftynet.layer.dilatedcontext import DilatedTensor
@@ -342,19 +343,19 @@ class HighResBlock(TrainableLayer):
             acti_op = ActiLayer(func=self.acti_func,
                                 regularizer=self.regularizers['w'],
                                 name='acti_{}'.format(i))
-            conv_op = ConvLayer(n_output_chns=self.n_output_chns,
-                                kernel_size=k,
-                                stride=1,
-                                w_initializer=self.initializers['w'],
-                                w_regularizer=self.regularizers['w'],
-                                name='conv_{}'.format(i))
+            norm_conv_op = MTConvLayer(n_output_chns=self.n_output_chns,
+                                       kernel_size=k,
+                                       stride=1,
+                                       w_initializer=self.initializers['w'],
+                                       w_regularizer=self.regularizers['w'],
+                                       name='normed_conv_{}'.format(i))
             # connect layers
             if mask is None:
                 output_tensor = bn_op(output_tensor, is_training)
             else:
                 output_tensor = bn_op(output_tensor, is_training, kernel_mask=mask)
             output_tensor = acti_op(output_tensor)
-            output_tensor = conv_op(output_tensor)
+            output_tensor = norm_conv_op(output_tensor, mask)
         # make residual connections
         if self.with_res:
             output_tensor = ElementwiseLayer('SUM')(output_tensor, input_tensor)

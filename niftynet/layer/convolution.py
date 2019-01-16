@@ -510,15 +510,15 @@ class DirichletGumbelGroupConvolutionalLayer(TrainableLayer):
 
         # Convolution across task features
         output_convs = []
-        for task_it, task_mask in enumerate(kernal_masks_unpacked):
+        for task_mask in kernal_masks_unpacked:
             # Reshape task_mask to 1x1xc1x1 size
             # Put code
             task_mask = tf.expand_dims(task_mask, 1) * tf.ones([1, self.n_output_chns])
             task_mask = tf.expand_dims(tf.expand_dims(task_mask, 0), 0)
             if self.preactivation:
-                output_convs.append(conv_layer(activation(input_tensor, group_bn), task_mask, task_it))
+                output_convs.append(conv_layer(activation(input_tensor, group_bn), task_mask))
             else:
-                output_convs.append(activation(conv_layer(input_tensor, task_mask, task_it), group_bn))
+                output_convs.append(activation(conv_layer(input_tensor, task_mask), group_bn))
 
         # sum all tasks
         if self.keep_group:
@@ -1153,21 +1153,17 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         output_layers = []
 
         if type(input_tensor) is not list:
-            for task_it, sampled_mask in enumerate(cat_mask_unstacked):
-
+            for sampled_mask in cat_mask_unstacked:
                 if self.preactivation:
-                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask, task_it))
+                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask))
                 else:
-                    output_layers.append(activation(conv_layer(input_tensor, sampled_mask, task_it), group_bn))
+                    output_layers.append(activation(conv_layer(input_tensor, sampled_mask), group_bn))
         else:
-            task_it = 0
             for clustered_tensor, sampled_mask in zip(input_tensor, cat_mask_unstacked):
-
                 if self.preactivation:
-                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask, task_it))
+                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask))
                 else:
-                    output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask, task_it), group_bn))
-                task_it += 1
+                    output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask), group_bn))
 
         # apply batch norm on sparse tensors before combination
         bn_1 = BNLayer(regularizer=self.regularizers['w'],
