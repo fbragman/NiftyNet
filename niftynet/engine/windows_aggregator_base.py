@@ -86,8 +86,11 @@ class ImageWindowsAggregator(object):
         :param border:
         :return:
         """
+
+        one_voxel_image_flag = None
+
         if not border:
-            return window, location
+            return window, location, one_voxel_image_flag
         assert isinstance(border, (list, tuple)), \
             "border should be a list or tuple"
         while len(border) < N_SPATIAL:
@@ -102,7 +105,7 @@ class ImageWindowsAggregator(object):
             location[:, idx + 1] = location[:, idx + 1] + border[idx]
             location[:, idx + 4] = location[:, idx + 4] - border[idx]
         if np.any(location < 0):
-            return window, location
+            return window, location, one_voxel_image_flag
 
         cropped_shape = np.max(location[:, 4:7] - location[:, 1:4], axis=0)
         left = np.floor(
@@ -117,7 +120,6 @@ class ImageWindowsAggregator(object):
                 spatial_shape, cropped_shape)
             raise ValueError
 
-        one_voxel_image_flag = None
         if n_spatial == 1:
             window = window[:,
                             left[0]:(left[0] + cropped_shape[0]),
@@ -136,10 +138,7 @@ class ImageWindowsAggregator(object):
         else:
             window = window
             one_voxel_image_flag = True
-            #tf.logging.fatal(
-            #    'unknown output format: shape %s'
-            #    ' spatial dims are: %s', window_shape, spatial_shape)
-            #raise NotImplementedError
+
         return window, location, one_voxel_image_flag
 
     def log_inferred(self, subject_name, filename):
