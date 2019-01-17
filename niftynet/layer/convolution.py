@@ -121,7 +121,7 @@ class MTConvLayer(TrainableLayer):
                                               strides=full_stride,
                                               dilation_rate=full_dilation,
                                               padding=self.padding,
-                                              name="activation_conv")
+                                              name="conv")
 
         else:
 
