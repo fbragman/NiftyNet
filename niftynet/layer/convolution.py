@@ -107,25 +107,24 @@ class MTConvLayer(TrainableLayer):
             #                (w x h x d x N) * (N x 1) by broadcasting masks/weights relevant kernels
 
             # Use normalised convolution
+
+            # Convert task_mask (vector of class assignments) to same size as kernel with depth-wise matrices as matrix
+            # of the class assignments
+            #
+            # i.e. task_mask = [0 1 1 2 0 1]
+            # --> task_mask[:, :, :, 2] = [1 1 1; 1 1 1; 1 1 1] etc..
+            # to allow convolution of kernel?
+
             conv_kernel_masked = conv_kernel * task_mask
-            tensor_conv = tf.nn.convolution(input=input_tensor,
-                                            filter=conv_kernel_masked,
-                                            strides=full_stride,
-                                            dilation_rate=full_dilation,
-                                            padding=self.padding,
-                                            name="activation_conv")
-            mask_conv = tf.nn.convolution(input=task_mask,
-                                          filter=conv_kernel_masked,
-                                          strides=full_stride,
-                                          dilation_rate=full_dilation,
-                                          padding=self.padding,
-                                          name='mask_conv')
-            output_tensor = tf.divide(tensor_conv, mask_conv, name='normed_conv')
-
-
-            # TODO figure out batch-norm, group-norm strategy
+            output_tensor = tf.nn.convolution(input=input_tensor,
+                                              filter=conv_kernel_masked,
+                                              strides=full_stride,
+                                              dilation_rate=full_dilation,
+                                              padding=self.padding,
+                                              name="activation_conv")
 
         else:
+
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel,
                                               strides=full_stride,
