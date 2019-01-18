@@ -17,9 +17,8 @@ from niftynet.network.base_net import BaseNet
 
 import tensorflow as tf
 
-class LearnedMTHighRes3DNet2(BaseNet):
 
-    ## learned clustering at all layers, including between residual blocks
+class LearnedMTHighRes3DNet2(BaseNet):
 
     def __init__(self,
                  num_classes,
@@ -109,11 +108,17 @@ class LearnedMTHighRes3DNet2(BaseNet):
         # If is_training=False, learned_mask <- Categorical draw
         # Pass sparse tensors to residual blocks which need sparse BN vectors
 
+        # task_1_mask = task_1_mask + shared_mask
+        # task_2_mask = task_2_mask + shared_mask
+        mask_to_resblock = learned_mask
+        mask_to_resblock[0] = mask_to_resblock[0] + mask_to_resblock[1]
+        mask_to_resblock[2] = mask_to_resblock[2] + mask_to_resblock[1]
+
         ### resblocks, all kernels dilated by 1 (normal convolution) on sparse tensors
         params = self.layers[1]
         # iterate over clustered activation maps
         clustered_res_block = []
-        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
+        for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=1) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -153,10 +158,16 @@ class LearnedMTHighRes3DNet2(BaseNet):
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
+        # task_1_mask = task_1_mask + shared_mask
+        # task_2_mask = task_2_mask + shared_mask
+        mask_to_resblock = learned_mask
+        mask_to_resblock[0] = mask_to_resblock[0] + mask_to_resblock[1]
+        mask_to_resblock[2] = mask_to_resblock[2] + mask_to_resblock[1]
+
         ### resblocks, all kernels dilated by 2
         params = self.layers[3]
         clustered_res_block = []
-        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
+        for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=2) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
@@ -196,10 +207,16 @@ class LearnedMTHighRes3DNet2(BaseNet):
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
+        # task_1_mask = task_1_mask + shared_mask
+        # task_2_mask = task_2_mask + shared_mask
+        mask_to_resblock = learned_mask
+        mask_to_resblock[0] = mask_to_resblock[0] + mask_to_resblock[1]
+        mask_to_resblock[2] = mask_to_resblock[2] + mask_to_resblock[1]
+
         ### resblocks, all kernels dilated by 4
         params = self.layers[5]
         clustered_res_block = []
-        for clustered_tensor, cluster_mask in zip(grouped_flow, learned_mask):
+        for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=4) as dilated:
                 for j in range(params['repeat']):
                     res_block = HighResBlock(
