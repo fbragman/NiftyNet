@@ -84,7 +84,7 @@ class MultiTaskApplication(BaseApplication):
             reader_names = ('image', 'output_1', 'output_2', 'weight', 'sampler')
         elif self.is_inference:
             # in the inference process use `image` input only
-            reader_names = ('image', 'output_2')
+            reader_names = ('image',)
         elif self.is_evaluation:
             reader_names = ('image', 'output_1', 'output_2', 'inferred')
         else:
