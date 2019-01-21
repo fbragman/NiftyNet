@@ -380,10 +380,25 @@ class MultiTaskApplication(BaseApplication):
                     average_over_devices=True, summary_type='image3_axial',
                     collection=TF_SUMMARIES)
 
-                post_process_layer = PostProcessingLayer(
-                    'ARGMAX', num_classes=self.multitask_param.num_classes[1])
-                prediction_task_2 = post_process_layer(crop_layer(net_out_task_2))
+                if self.multitask_param.task_2_type == 'segmentation':
+                    post_process_layer = PostProcessingLayer(
+                        'ARGMAX', num_classes=self.multitask_param.num_classes[1])
+                    prediction_task_2 = post_process_layer(crop_layer(net_out_task_2))
+                else:
+                    prediction_task_2 = crop_layer(net_out_task_2)
 
+                    # Only output if not segmentation
+                    error_image = tf.abs(tf.subtract(prediction_task_2, crop_layer(data_dict['output_2'])))
+                    outputs_collector.add_to_collection(
+                        var=tf.contrib.image.rotate(
+                            255 * (error_image - tf.reduce_min(error_image)) /
+                            (tf.reduce_max(error_image - tf.reduce_min(error_image))),
+                            math.pi / 2), name='task_2/error',
+                        average_over_devices=True, summary_type='image3_axial',
+                        collection=TF_SUMMARIES)
+                    tf.summary.histogram('task_2/error', error_image)
+
+                # output prediction for all types of tasks
                 outputs_collector.add_to_collection(
                     var=tf.contrib.image.rotate(
                         255 * (prediction_task_2 - tf.reduce_min(prediction_task_2)) /
