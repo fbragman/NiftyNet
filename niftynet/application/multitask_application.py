@@ -398,6 +398,15 @@ class MultiTaskApplication(BaseApplication):
                         collection=TF_SUMMARIES)
                     tf.summary.histogram('task_2/error', error_image)
 
+                    error_tasks = tf.abs(tf.subtract(crop_layer(net_out_task_2), crop_layer(net_out_task_1)))
+                    outputs_collector.add_to_collection(
+                        var=tf.contrib.image.rotate(
+                            255 * (error_tasks - tf.reduce_min(error_tasks)) /
+                            (tf.reduce_max(error_tasks - tf.reduce_min(error_tasks))),
+                            math.pi / 2), name='error_between_tasks',
+                        average_over_devices=True, summary_type='image3_axial',
+                        collection=TF_SUMMARIES)
+
                 # output prediction for all types of tasks
                 outputs_collector.add_to_collection(
                     var=tf.contrib.image.rotate(
