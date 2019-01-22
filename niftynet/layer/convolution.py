@@ -12,6 +12,7 @@ from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
 from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical, Categorical
 from niftynet.layer import group_ops
+from tensorflow.layers import BatchNormalization
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
 
