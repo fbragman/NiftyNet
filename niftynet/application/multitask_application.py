@@ -296,7 +296,8 @@ class MultiTaskApplication(BaseApplication):
                         'init_categorical': self.multitask_param.init_categorical,
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping,
-                        'min_temp': self.multitask_param.min_temp
+                        'min_temp': self.multitask_param.min_temp,
+                        'batch_renorm': self.multitask_param.batch_renorm
                         }
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
@@ -480,7 +481,8 @@ class MultiTaskApplication(BaseApplication):
                         'init_categorical': self.multitask_param.init_categorical,
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping,
-                        'min_temp': self.multitask_param.min_temp
+                        'min_temp': self.multitask_param.min_temp,
+                        'batch_renorm': self.multitask_param.batch_renorm
                         }
 
             net_out, categoricals = self.net(image, **net_args)

@@ -65,6 +65,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
         cat_instances = []
 
         current_iter = unused_kwargs['current_iter']
+        batch_renorm = unused_kwargs['batch_renorm']
 
         ### annealing of tau
         use_annealing = unused_kwargs['use_tau_annealing']

@@ -424,6 +424,14 @@ def __add_multitask_args(parser):
         default=False
     )
 
+    parser.add_argument(
+        "--batch_renorm",
+        metavar='',
+        help="[Method option] Use Batch Renormalisation",
+        type=str2boolean,
+        default=False
+    )
+
     # Allow constant grouping
     # [1,0,0;1,0,0;0,1,0;0,0,1] automatically set based on init_categorical
     parser.add_argument(
