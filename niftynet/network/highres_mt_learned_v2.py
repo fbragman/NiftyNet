@@ -6,8 +6,7 @@ from six.moves import range
 from niftynet.layer import layer_util
 from niftynet.layer.activation import ActiLayer
 from niftynet.layer.base_layer import TrainableLayer
-from niftynet.layer.bn import BNLayer
-from niftynet.layer.convolution import ConvLayer, ConvolutionalLayer
+from niftynet.layer.convolution import ConvolutionalLayer
 from niftynet.layer.convolution import MTConvLayer
 from niftynet.layer.convolution import LearnedCategoricalGroupConvolutionalLayer
 from niftynet.layer.annealing import gumbel_softmax_decay
