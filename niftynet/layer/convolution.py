@@ -940,6 +940,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
     Learn how to disentangle features by learning categorical distribution with Dirichlet prior
     over convolutional kernels
 
+    Conv --> Activation --> BatchNorm
+
     Params of interest:
 
     1.  categorical = True
@@ -982,6 +984,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  with_bias=False,
                  with_bn=False,
                  with_gn=False,
+                 renorm=False,
                  group_size=-1,
                  acti_func=None,
                  preactivation=False,
@@ -1006,6 +1009,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         self.p_init = p_init
         self.init_cat = init_cat
         self.constant_grouping = constant_grouping
+
+        self.renorm = renorm
 
         self.group_connection = group_connection
 
@@ -1041,27 +1046,11 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
     def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False):
 
-        if self.with_bn:
-            if is_training is None:
-                raise ValueError('is_training argument should be '
-                                 'True or False unless with_bn is False')
-
-            # Only need 1 batch-norm layer since grouping is done by masking input tensor
-            group_bn = BNLayer(regularizer=self.regularizers['w'],
-                               moving_decay=self.moving_decay,
-                               eps=self.eps,
-                               name='bn_')
-        else:
-            group_bn = None
-
         if self.acti_func is not None:
             acti_layer = ActiLayer(
                 func=self.acti_func,
                 regularizer=self.regularizers['w'],
                 name='acti_')
-
-        if keep_prob is not None:
-            dropout_layer = ActiLayer(func='dropout', name='dropout_')
 
         conv_layer = MTConvLayer(n_output_chns=self.n_output_chns,
                                  kernel_size=self.kernel_size,
@@ -1075,13 +1064,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                  b_regularizer=self.regularizers['b'],
                                  name='group_conv_')
 
-        def activation(output_tensor, bn_layer):
-            if self.with_bn and bn_layer is not None:
-                output_tensor = bn_layer(output_tensor, is_training)
+        def activation(output_tensor):
             if self.acti_func is not None:
                 output_tensor = acti_layer(output_tensor)
-            if keep_prob is not None:
-                output_tensor = dropout_layer(output_tensor, keep_prob=keep_prob)
             return output_tensor
 
         with tf.variable_scope('categorical_p'):
@@ -1095,7 +1080,6 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 dist = dirichlet(alpha)
                 dirichlet_init = tf.stop_gradient(dist.sample([N]))
             else:
-                #dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
                 dirichlet_init_user = np.float32(np.asarray(self.init_cat))
                 dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
 
@@ -1106,9 +1090,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                               dtype=tf.float32,
                                               trainable=True)
 
-                # For variables to be in range [0, 1] - softplus
-                #dirichlet_p = tf.nn.softplus(dirichlet_p)
-                #dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
+                # For variables to be in range [0, 1] - softmax
                 dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
 
             else:
@@ -1152,38 +1134,33 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         # if list: layer > 1, if not: layer == 1
         output_layers = []
 
+        # Never using preactivation in this set-up
         if type(input_tensor) is not list:
             for sampled_mask in cat_mask_unstacked:
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask))
-                else:
-                    output_layers.append(activation(conv_layer(input_tensor, sampled_mask), group_bn))
+                output_layers.append(activation(conv_layer(input_tensor, sampled_mask)))
         else:
             for clustered_tensor, sampled_mask in zip(input_tensor, cat_mask_unstacked):
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask))
-                else:
-                    output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask), group_bn))
+                output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask)))
 
         # apply batch norm on sparse tensors before combination
-        bn_1 = BNLayer(regularizer=self.regularizers['w'],
-                       moving_decay=self.moving_decay,
-                       eps=self.eps,
-                       name='bn_task_1')
+        bn_1 = BatchNormalization(beta_regularizer=self.regularizers['w'],
+                                  gamma_regularizer=self.regularizers['w'],
+                                  renorm=self.renorm,
+                                  name='bn_task_1')
 
-        bn_2 = BNLayer(regularizer=self.regularizers['w'],
-                       moving_decay=self.moving_decay,
-                       eps=self.eps,
-                       name='bn_shared')
+        bn_2 = BatchNormalization(beta_regularizer=self.regularizers['w'],
+                                  gamma_regularizer=self.regularizers['w'],
+                                  renorm=self.renorm,
+                                  name='bn_shared')
 
-        bn_3 = BNLayer(regularizer=self.regularizers['w'],
-                       moving_decay=self.moving_decay,
-                       eps=self.eps,
-                       name='bn_task_2')
+        bn_3 = BatchNormalization(beta_regularizer=self.regularizers['w'],
+                                  gamma_regularizer=self.regularizers['w'],
+                                  renorm=self.renorm,
+                                  name='bn_task_2')
 
-        output_layers[0] = bn_1(output_layers[0], is_training, kernel_mask=cat_mask_unstacked[0])
-        output_layers[1] = bn_2(output_layers[1], is_training, kernel_mask=cat_mask_unstacked[1])
-        output_layers[2] = bn_3(output_layers[2], is_training, kernel_mask=cat_mask_unstacked[2])
+        output_layers[0] = bn_1(output_layers[0], is_training)
+        output_layers[1] = bn_2(output_layers[1], is_training)
+        output_layers[2] = bn_3(output_layers[2], is_training)
 
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
