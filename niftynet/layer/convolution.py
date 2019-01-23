@@ -1162,6 +1162,12 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         output_layers[1] = bn_2(output_layers[1], is_training)
         output_layers[2] = bn_3(output_layers[2], is_training)
 
+        if is_training is False:
+            # Need to mask out output due to sparsity of output_layers
+            output_layers[0] = output_layers[0] * cat_mask_unstacked[0]
+            output_layers[1] = output_layers[1] * cat_mask_unstacked[1]
+            output_layers[2] = output_layers[2] * cat_mask_unstacked[2]
+
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
                 # task 1 tensor
