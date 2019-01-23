@@ -16,6 +16,7 @@ from niftynet.layer.elementwise import ElementwiseLayer
 from niftynet.network.base_net import BaseNet
 
 import tensorflow as tf
+from tensorflow.layers import BatchNormalization
 
 
 class LearnedMTHighRes3DNet2(BaseNet):
@@ -332,6 +333,7 @@ class HighResBlock(TrainableLayer):
 
     def __init__(self,
                  n_output_chns,
+                 batch_renorm,
                  kernels=(3, 3),
                  acti_func='relu',
                  w_initializer=None,
@@ -349,6 +351,8 @@ class HighResBlock(TrainableLayer):
         self.acti_func = acti_func
         self.with_res = with_res
 
+        self.batch_renorm = batch_renorm
+
         self.initializers = {'w': w_initializer}
         self.regularizers = {'w': w_regularizer}
 
@@ -356,8 +360,10 @@ class HighResBlock(TrainableLayer):
         output_tensor = input_tensor
         for (i, k) in enumerate(self.kernels):
             # create parameterised layers
-            bn_op = BNLayer(regularizer=self.regularizers['w'],
-                            name='bn_{}'.format(i))
+            bn_op = BatchNormalization(beta_regularizer=self.regularizers['w'],
+                                       gamma_regularizer=self.regularizers['w'],
+                                       renorm=self.batch_renorm,
+                                       name='bn_{}'.format(i))
             acti_op = ActiLayer(func=self.acti_func,
                                 regularizer=self.regularizers['w'],
                                 name='acti_{}'.format(i))
@@ -367,11 +373,14 @@ class HighResBlock(TrainableLayer):
                                          w_initializer=self.initializers['w'],
                                          w_regularizer=self.regularizers['w'],
                                          name='masked_res_conv_{}'.format(i))
+
+            output_tensor = bn_op(output_tensor, is_training)
+
             # connect layers
-            if mask is None:
-                output_tensor = bn_op(output_tensor, is_training)
-            else:
-                output_tensor = bn_op(output_tensor, is_training, kernel_mask=mask)
+            if is_training is False:
+                if mask is not None:
+                    output_tensor = output_tensor * mask
+
             output_tensor = acti_op(output_tensor)
             output_tensor = masked_conv_op(output_tensor, mask)
         # make residual connections
