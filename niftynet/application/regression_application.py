@@ -326,9 +326,9 @@ class RegressionApplication(BaseApplication):
 
             outputs_collector.add_to_collection(
                 var=tf.contrib.image.rotate(
-                    255 * (crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1']))) /
+                    255 * (crop_layer(data_dict['output']) - tf.reduce_min(crop_layer(data_dict['output']))) /
                     (tf.reduce_max(
-                        crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1'])))),
+                        crop_layer(data_dict['output']) - tf.reduce_min(crop_layer(data_dict['output'])))),
                     math.pi / 2), name='gt',
                 average_over_devices=True, summary_type='image3_axial',
                 collection=TF_SUMMARIES)
@@ -341,7 +341,7 @@ class RegressionApplication(BaseApplication):
                 average_over_devices=True, summary_type='image3_axial',
                 collection=TF_SUMMARIES)
 
-            error_image = tf.abs(tf.subtract(crop_layer(net_out), crop_layer(data_dict['output_1'])))
+            error_image = tf.abs(tf.subtract(crop_layer(net_out), crop_layer(data_dict['output'])))
             outputs_collector.add_to_collection(
                 var=tf.contrib.image.rotate(
                     255 * (error_image - tf.reduce_min(error_image)) /
