@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
+import math
 
 from niftynet.application.base_application import BaseApplication
 from niftynet.engine.application_factory import \
@@ -322,6 +323,33 @@ class RegressionApplication(BaseApplication):
                 var=data_loss, name='loss',
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
+
+            outputs_collector.add_to_collection(
+                var=tf.contrib.image.rotate(
+                    255 * (crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1']))) /
+                    (tf.reduce_max(
+                        crop_layer(data_dict['output_1']) - tf.reduce_min(crop_layer(data_dict['output_1'])))),
+                    math.pi / 2), name='gt',
+                average_over_devices=True, summary_type='image3_axial',
+                collection=TF_SUMMARIES)
+
+            outputs_collector.add_to_collection(
+                var=tf.contrib.image.rotate(
+                    255 * (crop_layer(net_out) - tf.reduce_min(crop_layer(net_out))) /
+                    (tf.reduce_max(crop_layer(net_out) - tf.reduce_min(crop_layer(net_out)))),
+                    math.pi / 2), name='prediction',
+                average_over_devices=True, summary_type='image3_axial',
+                collection=TF_SUMMARIES)
+
+            error_image = tf.abs(tf.subtract(crop_layer(net_out), crop_layer(data_dict['output_1'])))
+            outputs_collector.add_to_collection(
+                var=tf.contrib.image.rotate(
+                    255 * (error_image - tf.reduce_min(error_image)) /
+                    (tf.reduce_max(error_image - tf.reduce_min(error_image))),
+                    math.pi / 2), name='error',
+                average_over_devices=True, summary_type='image3_axial',
+                collection=TF_SUMMARIES)
+
         elif self.is_inference:
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
