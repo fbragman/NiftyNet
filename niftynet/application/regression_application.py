@@ -264,12 +264,11 @@ class RegressionApplication(BaseApplication):
             else:
                 data_dict = switch_sampler(for_training=True)
 
-            current_iter = tf.placeholder(dtype=tf.float32, shape=())
+            #current_iter = tf.placeholder(dtype=tf.float32, shape=())
 
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
-                        'keep_prob': self.net_param.keep_prob,
-                        'current_iter': current_iter}
+                        'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
 
             with tf.name_scope('Optimiser'):
@@ -353,7 +352,6 @@ class RegressionApplication(BaseApplication):
 
         elif self.is_inference:
             data_dict = switch_sampler(for_training=False)
-            current_iter = tf.constant(1)
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
@@ -411,6 +409,6 @@ class RegressionApplication(BaseApplication):
         elif iteration_message.is_validation:
             iteration_message.data_feed_dict[self.is_validation] = True
 
-        if self.is_training:
-            iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
-                iteration_message.current_iter
+        #if self.is_training:
+        #    iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
+        #        iteration_message.current_iter
