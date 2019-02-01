@@ -1130,14 +1130,17 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                     with tf.variable_scope('categorical_sampling'):
                         # Create object for categorical
                         cat_dist = GumbelSoftmax(dirichlet_p, tau)
-
                         # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
                         cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
                         cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
                 else:
                     # sample from Cat(p) - do not need approximation
-                    cat_dist = Categorical(dirichlet_p)
-                    cat_mask = cat_dist()
+                    #cat_dist = Categorical(dirichlet_p)
+                    #cat_mask = cat_dist()
+                    #cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+                    cat_dist = GumbelSoftmax(dirichlet_p, tau)
+                    # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
+                    cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
                     cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
 
             else:
