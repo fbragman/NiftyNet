@@ -1183,9 +1183,10 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                        eps=self.eps,
                        name='bn_task_2')
 
-        output_layers[0] = bn_1(output_layers[0], is_training, kernel_mask=cat_mask_unstacked[0])
-        output_layers[1] = bn_2(output_layers[1], is_training, kernel_mask=cat_mask_unstacked[1])
-        output_layers[2] = bn_3(output_layers[2], is_training, kernel_mask=cat_mask_unstacked[2])
+        with tf.name_scope('bn_calls'):
+            output_layers[0] = bn_1(output_layers[0], is_training, kernel_mask=cat_mask_unstacked[0])
+            output_layers[1] = bn_2(output_layers[1], is_training, kernel_mask=cat_mask_unstacked[1])
+            output_layers[2] = bn_3(output_layers[2], is_training, kernel_mask=cat_mask_unstacked[2])
 
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
