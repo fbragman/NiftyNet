@@ -86,6 +86,25 @@ class TestSFG(BaseNet):
         grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
         cat_instances.append((d_p, learned_mask))
 
+        params = self.layers[1]
+        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            categorical=True,
+            use_hardcat=unused_kwargs['use_hardcat'],
+            learn_cat=unused_kwargs['learn_categorical'],
+            p_init=self.p_init,
+            init_cat=unused_kwargs['init_categorical'],
+            constant_grouping=unused_kwargs['constant_grouping'],
+            group_connection=unused_kwargs['group_connection'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+        layer_instances.append((conv_layer, grouped_flow))
+        cat_instances.append((d_p, learned_mask))
+
         params = self.layers[2]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
             n_output_chns=params['n_features'],
@@ -105,26 +124,7 @@ class TestSFG(BaseNet):
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
-        params = self.layers[4]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[8]
+        params = self.layers[3]
         fc_layer_1 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
@@ -136,7 +136,7 @@ class TestSFG(BaseNet):
         task_1_output = fc_layer_1(grouped_flow[0], is_training)
         layer_instances.append((fc_layer_1, task_1_output))
 
-        params = self.layers[9]
+        params = self.layers[4]
         fc_layer_2 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
