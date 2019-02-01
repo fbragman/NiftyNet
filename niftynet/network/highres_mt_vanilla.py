@@ -101,6 +101,7 @@ class VanillaMTHigh(BaseNet):
         with DilatedTensor(flow, dilation_factor=2) as dilated:
             for j in range(params['repeat']):
                 res_block = HighResBlock(
+
                     params['n_features'],
                     params['kernels'],
                     acti_func=self.acti_func,
