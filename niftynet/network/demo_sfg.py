@@ -38,9 +38,9 @@ class TestSFG(BaseNet):
 
         self.layers = [
             {'name': 'conv_0', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'conv_1', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'conv_2', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'conv_3', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'conv_1', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'conv_2', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'conv_3', 'n_features': int(32*scale), 'kernel_size': 3},
             {'name': 'conv_4', 'n_features': int(32*scale), 'kernel_size': 3},
             {'name': 'conv_5', 'n_features': int(32*scale), 'kernel_size': 3},
             {'name': 'conv_6', 'n_features': int(64*scale), 'kernel_size': 3},
