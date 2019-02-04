@@ -39,10 +39,14 @@ class TestSFG(BaseNet):
         self.layers = [
             {'name': 'conv_0', 'n_features': int(16*scale), 'kernel_size': 3},
             {'name': 'conv_1', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'conv_2', 'n_features': int(32*scale), 'kernel_size': 3},
-            {'name': 'conv_3', 'n_features': int(32*scale), 'kernel_size': 3},
-            {'name': 'conv_4', 'n_features': int(64*scale), 'kernel_size': 3},
-            {'name': 'conv_5', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_2', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'conv_3', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'conv_4', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'conv_5', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'conv_6', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_7', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_8', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_9', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'task_1_out', 'n_features': num_classes[0], 'kernel_size': 1},
             {'name': 'task_2_out', 'n_features': num_classes[1], 'kernel_size': 1}]
 
@@ -71,120 +75,43 @@ class TestSFG(BaseNet):
         else:
             tau_val = max_tau
 
-        params = self.layers[0]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
-        cat_instances.append((d_p, learned_mask))
+        for it, params in enumerate(self.layers[:-2]):
+            if it == 0:
+                conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+                    n_output_chns=params['n_features'],
+                    kernel_size=params['kernel_size'],
+                    categorical=True,
+                    use_hardcat=unused_kwargs['use_hardcat'],
+                    learn_cat=unused_kwargs['learn_categorical'],
+                    p_init=self.p_init,
+                    init_cat=unused_kwargs['init_categorical'],
+                    constant_grouping=unused_kwargs['constant_grouping'],
+                    group_connection=unused_kwargs['group_connection'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name=params['name'])
+                grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
+                cat_instances.append((d_p, learned_mask))
+            else:
+                conv_layer = LearnedCategoricalGroupConvolutionalLayer(
+                    n_output_chns=params['n_features'],
+                    kernel_size=params['kernel_size'],
+                    categorical=True,
+                    use_hardcat=unused_kwargs['use_hardcat'],
+                    learn_cat=unused_kwargs['learn_categorical'],
+                    p_init=self.p_init,
+                    init_cat=unused_kwargs['init_categorical'],
+                    constant_grouping=unused_kwargs['constant_grouping'],
+                    group_connection=unused_kwargs['group_connection'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name=params['name'])
+                grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+                cat_instances.append((d_p, learned_mask))
 
-        params = self.layers[1]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[2]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[3]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[4]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[5]
-        conv_layer = LearnedCategoricalGroupConvolutionalLayer(
-            n_output_chns=params['n_features'],
-            kernel_size=params['kernel_size'],
-            categorical=True,
-            use_hardcat=unused_kwargs['use_hardcat'],
-            learn_cat=unused_kwargs['learn_categorical'],
-            p_init=self.p_init,
-            init_cat=unused_kwargs['init_categorical'],
-            constant_grouping=unused_kwargs['constant_grouping'],
-            group_connection=unused_kwargs['group_connection'],
-            acti_func=self.acti_func,
-            w_initializer=self.initializers['w'],
-            w_regularizer=self.regularizers['w'],
-            name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
-        layer_instances.append((conv_layer, grouped_flow))
-        cat_instances.append((d_p, learned_mask))
-
-        params = self.layers[6]
+        params = self.layers[-2]
         fc_layer_1 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
@@ -196,7 +123,7 @@ class TestSFG(BaseNet):
         task_1_output = fc_layer_1(grouped_flow[0], is_training)
         layer_instances.append((fc_layer_1, task_1_output))
 
-        params = self.layers[7]
+        params = self.layers[-1]
         fc_layer_2 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
@@ -208,7 +135,13 @@ class TestSFG(BaseNet):
         task_2_output = fc_layer_2(grouped_flow[-1], is_training)
         layer_instances.append((fc_layer_2, task_2_output))
 
-        net_out = [task_1_output, task_2_output]
+        if is_training:
+            self._print(layer_instances)
 
+        net_out = [task_1_output, task_2_output]
         cat_ps = [x[0] for x in cat_instances]
         return net_out, cat_ps
+
+    def _print(self, list_of_layers):
+        for (op, _) in list_of_layers:
+            print(op)
