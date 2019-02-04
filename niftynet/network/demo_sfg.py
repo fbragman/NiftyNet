@@ -38,8 +38,8 @@ class TestSFG(BaseNet):
 
         self.layers = [
             {'name': 'conv_0', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'conv_1', 'n_features': int(32*scale), 'kernel_size': 3},
-            {'name': 'conv_2', 'n_features': int(32*scale), 'kernel_size': 3},
+            {'name': 'conv_1', 'n_features': int(16*scale), 'kernel_size': 3},
+            {'name': 'conv_2', 'n_features': int(16*scale), 'kernel_size': 3},
             {'name': 'conv_3', 'n_features': int(32*scale), 'kernel_size': 3},
             {'name': 'conv_4', 'n_features': int(32*scale), 'kernel_size': 3},
             {'name': 'conv_5', 'n_features': int(32*scale), 'kernel_size': 3},
@@ -47,6 +47,8 @@ class TestSFG(BaseNet):
             {'name': 'conv_7', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'conv_8', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'conv_9', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_10', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_11', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'task_1_out', 'n_features': num_classes[0], 'kernel_size': 1},
             {'name': 'task_2_out', 'n_features': num_classes[1], 'kernel_size': 1}]
 
