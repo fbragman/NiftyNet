@@ -93,6 +93,7 @@ class TestSFG(BaseNet):
                     name=params['name'])
                 grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
                 cat_instances.append((d_p, learned_mask))
+                layer_instances.append((conv_layer, grouped_flow))
             else:
                 conv_layer = LearnedCategoricalGroupConvolutionalLayer(
                     n_output_chns=params['n_features'],
@@ -110,6 +111,7 @@ class TestSFG(BaseNet):
                     name=params['name'])
                 grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
                 cat_instances.append((d_p, learned_mask))
+                layer_instances.append((conv_layer, grouped_flow))
 
         params = self.layers[-2]
         fc_layer_1 = ConvolutionalLayer(
