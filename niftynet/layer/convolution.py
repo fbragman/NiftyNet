@@ -91,7 +91,7 @@ class MTConvLayer(TrainableLayer):
             initializer=self.initializers['w'],
             regularizer=self.regularizers['w'])
 
-        if task_mask is not None:
+        if task_mask is not None or group_mask is not None:
             # Masking of kernels by multiplication with learned categorical mask grouping
             #
             # W is [w, h, d, N]: w,h: kernel size (3x3), d: depth of kernel, N: number of kernels
@@ -122,12 +122,21 @@ class MTConvLayer(TrainableLayer):
             # --> task_mask[:, :, :, 2] = [1 1 1; 1 1 1; 1 1 1] etc..
             # to allow convolution of kernel?
 
-            conv_kernel_masked = conv_kernel * task_mask
-            if group_mask is not None:
-                # Weighting depth wise by previous probability to ignore regions that
-                # are not likely to belong in this cluster
-                conv_kernel_tmp = tf.transpose(conv_kernel_masked, perm=[0, 1, 3, 2]) * group_mask
-                conv_kernel_masked = tf.transpose(conv_kernel_tmp, perm=[0, 1, 3, 2])
+            def apply_mask_convolution(kernel, mask):
+                tmp_kernel = tf.transpose(kernel, perm=[0, 1, 3, 2]) * mask
+                return tf.transpose(tmp_kernel, perm=[0, 1, 3, 2])
+
+            # 3 conditions:
+            # 1) clustering and masked convolution
+            # 2) masked convolution only
+            # 3) clustering convolution only
+            if task_mask is not None and group_mask is not None:
+                conv_kernel_masked = conv_kernel * task_mask
+                conv_kernel_masked = apply_mask_convolution(conv_kernel_masked, group_mask)
+            elif task_mask is None and group_mask is not None:
+                conv_kernel_masked = apply_mask_convolution(conv_kernel, group_mask)
+            elif group_mask is None and task_mask is not None:
+                conv_kernel_masked = conv_kernel * task_mask
 
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel_masked,
