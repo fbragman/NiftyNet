@@ -204,7 +204,7 @@ class ConvLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor):
+    def layer_op(self, input_tensor, group_mask=None):
 
         input_shape = input_tensor.shape.as_list()
         n_input_chns = input_shape[-1]
@@ -225,12 +225,26 @@ class ConvLayer(TrainableLayer):
             initializer=self.initializers['w'],
             regularizer=self.regularizers['w'])
 
-        output_tensor = tf.nn.convolution(input=input_tensor,
-                                          filter=conv_kernel,
-                                          strides=full_stride,
-                                          dilation_rate=full_dilation,
-                                          padding=self.padding,
-                                          name='conv')
+        if group_mask is None:
+            output_tensor = tf.nn.convolution(input=input_tensor,
+                                              filter=conv_kernel,
+                                              strides=full_stride,
+                                              dilation_rate=full_dilation,
+                                              padding=self.padding,
+                                              name='conv')
+        else:
+
+            def apply_mask_convolution(kernel, mask):
+                tmp_kernel = tf.transpose(kernel, perm=[0, 1, 3, 2]) * mask
+                return tf.transpose(tmp_kernel, perm=[0, 1, 3, 2])
+
+            output_tensor = tf.nn.convolution(input=input_tensor,
+                                              filter=apply_mask_convolution(conv_kernel, group_mask),
+                                              strides=full_stride,
+                                              dilation_rate=full_dilation,
+                                              padding=self.padding,
+                                              name='conv')
+
         if not self.with_bias:
             return output_tensor
 
@@ -309,7 +323,7 @@ class ConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, is_training=None, keep_prob=None):
+    def layer_op(self, input_tensor, is_training=None, keep_prob=None, group_mask=None):
         conv_layer = ConvLayer(n_output_chns=self.n_output_chns,
                                kernel_size=self.kernel_size,
                                stride=self.stride,
@@ -359,9 +373,9 @@ class ConvolutionalLayer(TrainableLayer):
             return output_tensor
 
         if self.preactivation:
-            output_tensor = conv_layer(activation(input_tensor))
+            output_tensor = conv_layer(activation(input_tensor), group_mask=group_mask)
         else:
-            output_tensor = activation(conv_layer(input_tensor))
+            output_tensor = activation(conv_layer(input_tensor, group_mask=group_mask))
 
         return output_tensor
 

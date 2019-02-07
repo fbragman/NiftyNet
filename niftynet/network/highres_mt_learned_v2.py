@@ -120,7 +120,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
         clustered_res_block = []
         for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=1) as dilated:
-                for j in range(params['repeat']):
+                repeat = range(params['repeat'])
+                for j in repeat:
                     res_block = HighResBlock(
                         params['n_features'],
                         params['kernels'],
@@ -128,7 +129,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    if j == 0:
+                        dilated.tensor = res_block(dilated.tensor, is_training, channel_mask=cluster_mask)
+                    elif j == repeat[-1]:
+                        dilated.tensor = res_block(dilated.tensor, is_training, task_mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -154,7 +158,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training,
+                                                     group_mask=mask_to_resblock)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -169,7 +174,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
         clustered_res_block = []
         for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=2) as dilated:
-                for j in range(params['repeat']):
+                repeat = range(params['repeat'])
+                for j in repeat:
                     res_block = HighResBlock(
                         params['n_features'],
                         params['kernels'],
@@ -177,7 +183,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    if j == 0:
+                        dilated.tensor = res_block(dilated.tensor, is_training, channel_mask=cluster_mask)
+                    elif j == repeat[-1]:
+                        dilated.tensor = res_block(dilated.tensor, is_training, task_mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -203,7 +212,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training,
+                                                     group_mask=mask_to_resblock)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -218,7 +228,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
         clustered_res_block = []
         for clustered_tensor, cluster_mask in zip(grouped_flow, mask_to_resblock):
             with DilatedTensor(clustered_tensor, dilation_factor=4) as dilated:
-                for j in range(params['repeat']):
+                repeat = range(params['repeat'])
+                for j in repeat:
                     res_block = HighResBlock(
                         params['n_features'],
                         params['kernels'],
@@ -226,7 +237,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    if j == 0:
+                        dilated.tensor = res_block(dilated.tensor, is_training, channel_mask=cluster_mask)
+                    elif j == repeat[-1]:
+                        dilated.tensor = res_block(dilated.tensor, is_training, task_mask=cluster_mask)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -252,9 +266,14 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training,
+                                                     group_mask=mask_to_resblock)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
+
+        previous_prob_mask = learned_mask
+        previous_prob_mask[0] = previous_prob_mask[0] + previous_prob_mask[1]
+        previous_prob_mask[2] = previous_prob_mask[2] + previous_prob_mask[1]
 
         params = self.layers[7]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
@@ -271,9 +290,14 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training,
+                                                     group_mask=previous_prob_mask)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
+
+        previous_prob_mask = learned_mask
+        task_1_mask = previous_prob_mask[0] + previous_prob_mask[1]
+        task_2_mask = previous_prob_mask[2] + previous_prob_mask[1]
 
         ### 1x1x1 convolution layer
         params = self.layers[8]
@@ -285,7 +309,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        task_1_output = fc_layer_1(grouped_flow[0], is_training)
+        task_1_output = fc_layer_1(grouped_flow[0], is_training, group_mask=task_1_mask)
         layer_instances.append((fc_layer_1, task_1_output))
 
         params = self.layers[9]
@@ -297,7 +321,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        task_2_output = fc_layer_2(grouped_flow[-1], is_training)
+        task_2_output = fc_layer_2(grouped_flow[-1], is_training, group_mask=task_2_mask)
         layer_instances.append((fc_layer_2, task_2_output))
 
         net_out = [task_1_output, task_2_output]
@@ -351,7 +375,7 @@ class HighResBlock(TrainableLayer):
         self.initializers = {'w': w_initializer}
         self.regularizers = {'w': w_regularizer}
 
-    def layer_op(self, input_tensor, is_training, mask=None):
+    def layer_op(self, input_tensor, is_training, task_mask=None, channel_mask=None):
         output_tensor = input_tensor
         for (i, k) in enumerate(self.kernels):
             # create parameterised layers
@@ -367,12 +391,15 @@ class HighResBlock(TrainableLayer):
                                          w_regularizer=self.regularizers['w'],
                                          name='masked_res_conv_{}'.format(i))
             # connect layers
-            if mask is None:
+            if task_mask is None:
                 output_tensor = bn_op(output_tensor, is_training)
             else:
-                output_tensor = bn_op(output_tensor, is_training, kernel_mask=mask)
+                output_tensor = bn_op(output_tensor, is_training, kernel_mask=task_mask)
             output_tensor = acti_op(output_tensor)
-            output_tensor = masked_conv_op(output_tensor, mask)
+            output_tensor = masked_conv_op(output_tensor,
+                                           task_mask=task_mask,
+                                           group_mask=channel_mask)
+
         # make residual connections
         if self.with_res:
             output_tensor = ElementwiseLayer('SUM')(output_tensor, input_tensor)
