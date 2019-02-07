@@ -63,8 +63,15 @@ class MTConvLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, task_mask=None, task_it=0):
-
+    def layer_op(self, input_tensor, task_mask=None, group_mask=None):
+        """
+        Call for convolutional layer
+        :param input_tensor: Input tensor from network
+        :param task_mask: Mask used to cluster kernels
+        :param group_mask: Mask for weighting channels in kernels for not focusing on
+                           sparse regions in feature maps
+        :return:
+        """
         input_shape = input_tensor.shape.as_list()
         n_input_chns = input_shape[-1]
         spatial_rank = layer_util.infer_spatial_rank(input_tensor)
@@ -116,6 +123,12 @@ class MTConvLayer(TrainableLayer):
             # to allow convolution of kernel?
 
             conv_kernel_masked = conv_kernel * task_mask
+            if group_mask is not None:
+                # Weighting depth wise by previous probability to ignore regions that
+                # are not likely to belong in this cluster
+                conv_kernel_tmp = tf.transpose(conv_kernel_masked, perm=[0, 1, 3, 2]) * group_mask
+                conv_kernel_masked = tf.transpose(conv_kernel_tmp, perm=[0, 1, 3, 2])
+
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel_masked,
                                               strides=full_stride,
@@ -1038,29 +1051,13 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False):
-
-        if self.with_bn:
-            if is_training is None:
-                raise ValueError('is_training argument should be '
-                                 'True or False unless with_bn is False')
-
-            # Only need 1 batch-norm layer since grouping is done by masking input tensor
-            group_bn = BNLayer(regularizer=self.regularizers['w'],
-                               moving_decay=self.moving_decay,
-                               eps=self.eps,
-                               name='bn_')
-        else:
-            group_bn = None
+    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False, group_mask=None):
 
         if self.acti_func is not None:
             acti_layer = ActiLayer(
                 func=self.acti_func,
                 regularizer=self.regularizers['w'],
                 name='acti_')
-
-        if keep_prob is not None:
-            dropout_layer = ActiLayer(func='dropout', name='dropout_')
 
         conv_layer = MTConvLayer(n_output_chns=self.n_output_chns,
                                  kernel_size=self.kernel_size,
@@ -1074,13 +1071,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                  b_regularizer=self.regularizers['b'],
                                  name='group_conv_')
 
-        def activation(output_tensor, bn_layer):
-            if self.with_bn and bn_layer is not None:
-                output_tensor = bn_layer(output_tensor, is_training)
+        def activation(output_tensor):
             if self.acti_func is not None:
                 output_tensor = acti_layer(output_tensor)
-            if keep_prob is not None:
-                output_tensor = dropout_layer(output_tensor, keep_prob=keep_prob)
             return output_tensor
 
         with tf.variable_scope('categorical_p'):
@@ -1154,19 +1147,16 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         # Check whether input_tensor is list or not
         # if list: layer > 1, if not: layer == 1
         output_layers = []
-
         if type(input_tensor) is not list:
+            # First iteration when input tensor is input volume
             for sampled_mask in cat_mask_unstacked:
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask))
-                else:
-                    output_layers.append(activation(conv_layer(input_tensor, sampled_mask), group_bn))
+                output_layers.append(activation(conv_layer(input_tensor,
+                                                           task_mask=sampled_mask)))
         else:
-            for clustered_tensor, sampled_mask in zip(input_tensor, cat_mask_unstacked):
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask))
-                else:
-                    output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask), group_bn))
+            for clustered_tensor, sampled_mask, sparse_mask in zip(input_tensor, cat_mask_unstacked, group_mask):
+                output_layers.append(activation(conv_layer(clustered_tensor,
+                                                           task_mask=sampled_mask,
+                                                           group_mask=sparse_mask)))
 
         # apply batch norm on sparse tensors before combination
         bn_1 = BNLayer(regularizer=self.regularizers['w'],
