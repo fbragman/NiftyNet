@@ -69,16 +69,10 @@ class BNLayer(TrainableLayer):
         # mean and var
         mean, variance = tf.nn.moments(inputs, axes)
 
-        if kernel_mask is None:
-            update_moving_mean = moving_averages.assign_moving_average(
-                moving_mean, mean, self.moving_decay).op
-            update_moving_variance = moving_averages.assign_moving_average(
-                moving_variance, variance, self.moving_decay).op
-        else:
-            update_moving_mean = moving_averages.assign_moving_average(
-                moving_mean, mean*kernel_mask, self.moving_decay).op
-            update_moving_variance = moving_averages.assign_moving_average(
-                moving_variance, variance*kernel_mask, self.moving_decay).op
+        update_moving_mean = moving_averages.assign_moving_average(
+            moving_mean, mean, self.moving_decay).op
+        update_moving_variance = moving_averages.assign_moving_average(
+            moving_variance, variance, self.moving_decay).op
 
         tf.add_to_collection(BN_COLLECTION, update_moving_mean)
         tf.add_to_collection(BN_COLLECTION, update_moving_variance)
