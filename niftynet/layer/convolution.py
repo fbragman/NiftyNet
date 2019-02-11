@@ -134,9 +134,7 @@ class MTConvLayer(TrainableLayer):
                                                   name="conv")
                 output_tensor = output_tensor * task_mask
 
-
         else:
-
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel,
                                               strides=full_stride,
