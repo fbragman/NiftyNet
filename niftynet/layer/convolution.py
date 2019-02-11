@@ -1176,15 +1176,9 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         if type(input_tensor) is not list:
             for sampled_mask in cat_mask_unstacked:
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(input_tensor, group_bn), sampled_mask))
-                else:
                     output_layers.append(activation(conv_layer(input_tensor, sampled_mask), group_bn))
         else:
             for clustered_tensor, sampled_mask in zip(input_tensor, cat_mask_unstacked):
-                if self.preactivation:
-                    output_layers.append(conv_layer(activation(clustered_tensor, group_bn), sampled_mask))
-                else:
                     output_layers.append(activation(conv_layer(clustered_tensor, sampled_mask), group_bn))
 
         # apply batch norm on sparse tensors before combination
