@@ -132,6 +132,11 @@ class MTConvLayer(TrainableLayer):
                                                   dilation_rate=full_dilation,
                                                   padding=self.padding,
                                                   name="conv")
+
+                # Convert mask from [batch_size, num_kernels] to [batch_size, 1, 1, num_kernels]
+                task_mask = tf.expand_dims(task_mask, 1)
+                task_mask = tf.expand_dims(task_mask, 1)
+                task_mask = tf.broadcast_to(task_mask, tf.shape(output_tensor))
                 output_tensor = output_tensor * task_mask
 
         else:
@@ -1146,7 +1151,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                         cat_dist = GumbelSoftmax(dirichlet_p, tau)
                         # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
                         cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
-                        cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
+                        cat_mask_unstacked = tf.unstack(cat_mask, axis=-1)
                 else:
                     # sample from Cat(p) - do not need approximation
                     #cat_dist = Categorical(dirichlet_p)
@@ -1200,16 +1205,16 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         with tf.name_scope('bn_calls'):
 
-            # Convert soft mask to hard mask (now during training and both)
-            # BUT should be only at training since would be implicitly hard at inference
-            hard_mask = tf.cast(tf.equal(cat_mask,
-                                         tf.reduce_max(cat_mask, 1, keepdims=True)),
-                                cat_mask.dtype)
-            hard_mask_unstacked = tf.unstack(hard_mask, axis=1)
+            # Convert soft mask to hard mask
+            # Mask is only used at inference..
+            # hard_mask = tf.cast(tf.equal(cat_mask,
+            #                              tf.reduce_max(cat_mask, 1, keepdims=True)),
+            #                     cat_mask.dtype)
+            # hard_mask_unstacked = tf.unstack(hard_mask, axis=-1)
 
-            output_layers[0] = bn_1(output_layers[0], is_training, kernel_mask=hard_mask_unstacked[0])
-            output_layers[1] = bn_2(output_layers[1], is_training, kernel_mask=hard_mask_unstacked[1])
-            output_layers[2] = bn_3(output_layers[2], is_training, kernel_mask=hard_mask_unstacked[2])
+            output_layers[0] = bn_1(output_layers[0], is_training, kernel_mask=cat_mask_unstacked[0])
+            output_layers[1] = bn_2(output_layers[1], is_training, kernel_mask=cat_mask_unstacked[1])
+            output_layers[2] = bn_3(output_layers[2], is_training, kernel_mask=cat_mask_unstacked[2])
 
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):

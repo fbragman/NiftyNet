@@ -135,7 +135,9 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    dilated.tensor = res_block(dilated.tensor, is_training,
+                                               mask=cluster_mask,
+                                               batch_sampling=batch_sampling)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -185,7 +187,9 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    dilated.tensor = res_block(dilated.tensor, is_training,
+                                               mask=cluster_mask,
+                                               batch_sampling=batch_sampling)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -235,7 +239,9 @@ class LearnedMTHighRes3DNet2(BaseNet):
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
                         name='%s_%d' % (params['name'], j))
-                    dilated.tensor = res_block(dilated.tensor, is_training, mask=cluster_mask)
+                    dilated.tensor = res_block(dilated.tensor, is_training,
+                                               mask=cluster_mask,
+                                               batch_sampling=batch_sampling)
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
@@ -362,7 +368,7 @@ class HighResBlock(TrainableLayer):
         self.initializers = {'w': w_initializer}
         self.regularizers = {'w': w_regularizer}
 
-    def layer_op(self, input_tensor, is_training, mask=None):
+    def layer_op(self, input_tensor, is_training, mask=None, batch_sampling=False):
         output_tensor = input_tensor
         for (i, k) in enumerate(self.kernels):
             # create parameterised layers
@@ -372,6 +378,7 @@ class HighResBlock(TrainableLayer):
                                 regularizer=self.regularizers['w'],
                                 name='acti_{}'.format(i))
             masked_conv_op = MTConvLayer(n_output_chns=self.n_output_chns,
+                                         batch_sampling=batch_sampling,
                                          kernel_size=k,
                                          stride=1,
                                          w_initializer=self.initializers['w'],
