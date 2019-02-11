@@ -38,6 +38,7 @@ class MTConvLayer(TrainableLayer):
 
     def __init__(self,
                  n_output_chns,
+                 batch_sampling=False,
                  kernel_size=3,
                  stride=1,
                  dilation=1,
@@ -56,6 +57,7 @@ class MTConvLayer(TrainableLayer):
         self.stride = stride
         self.dilation = dilation
         self.with_bias = with_bias
+        self.batch_sampling = batch_sampling
 
         self.initializers = {
             'w': w_initializer if w_initializer else default_w_initializer(),
@@ -115,13 +117,23 @@ class MTConvLayer(TrainableLayer):
             # --> task_mask[:, :, :, 2] = [1 1 1; 1 1 1; 1 1 1] etc..
             # to allow convolution of kernel?
 
-            conv_kernel_masked = conv_kernel * task_mask
-            output_tensor = tf.nn.convolution(input=input_tensor,
-                                              filter=conv_kernel_masked,
-                                              strides=full_stride,
-                                              dilation_rate=full_dilation,
-                                              padding=self.padding,
-                                              name="conv")
+            if self.batch_sampling is False:
+                conv_kernel_masked = conv_kernel * task_mask
+                output_tensor = tf.nn.convolution(input=input_tensor,
+                                                  filter=conv_kernel_masked,
+                                                  strides=full_stride,
+                                                  dilation_rate=full_dilation,
+                                                  padding=self.padding,
+                                                  name="conv")
+            else:
+                output_tensor = tf.nn.convolution(input=input_tensor,
+                                                  filter=conv_kernel,
+                                                  strides=full_stride,
+                                                  dilation_rate=full_dilation,
+                                                  padding=self.padding,
+                                                  name="conv")
+                output_tensor = output_tensor * task_mask
+
 
         else:
 
@@ -978,6 +990,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  constant_grouping=False,
                  use_annealing=False,
                  group_connection='mixed',
+                 batch_sampling=False,
                  with_bias=False,
                  with_bn=False,
                  with_gn=False,
@@ -1005,6 +1018,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         self.p_init = p_init
         self.init_cat = init_cat
         self.constant_grouping = constant_grouping
+        self.batch_sampling = batch_sampling
 
         self.group_connection = group_connection
 
@@ -1064,6 +1078,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         conv_layer = MTConvLayer(n_output_chns=self.n_output_chns,
                                  kernel_size=self.kernel_size,
+                                 batch_sampling=self.batch_sampling,
                                  stride=self.stride,
                                  dilation=self.dilation,
                                  padding=self.padding,
@@ -1094,7 +1109,6 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 dist = dirichlet(alpha)
                 dirichlet_init = tf.stop_gradient(dist.sample([N]))
             else:
-                #dirichlet_init_user = np.float32(np.log(np.exp(np.asarray(self.init_cat)) - 1.0))
                 dirichlet_init_user = np.float32(np.asarray(self.init_cat))
                 dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
 
@@ -1105,13 +1119,15 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                               dtype=tf.float32,
                                               trainable=True)
 
-                # For variables to be in range [0, 1] - softplus
-                #dirichlet_p = tf.nn.softplus(dirichlet_p)
-                #dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
+                # For variables to be in range [0, 1]
                 dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
 
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
+
+            if self.batch_sampling:
+                dirichlet_p = tf.expand_dims(dirichlet_p, 0)
+                dirichlet_p = tf.tile(dirichlet_p, [input_tensor.shape[0], 1, 1])
 
         if self.constant_grouping:
             # create constant grouping / no sampling at each iteration

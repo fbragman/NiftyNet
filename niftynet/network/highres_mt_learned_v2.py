@@ -64,6 +64,12 @@ class LearnedMTHighRes3DNet2(BaseNet):
         layer_instances = []
         cat_instances = []
 
+        # batch-wise sampling from Cat(p) or GS(p)
+        batch_sampling = unused_kwargs['batch_sampling']
+        if batch_sampling is None:
+            batch_sampling = False
+
+        # current iteration for tau annealing
         current_iter = unused_kwargs['current_iter']
 
         ### annealing of tau
@@ -90,6 +96,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             use_hardcat=unused_kwargs['use_hardcat'],
             learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
+            batch_sampling=batch_sampling,
             init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
@@ -147,6 +154,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             use_hardcat=unused_kwargs['use_hardcat'],
             learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
+            batch_sampling=batch_sampling,
             init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
@@ -196,6 +204,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             use_hardcat=unused_kwargs['use_hardcat'],
             learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
+            batch_sampling=batch_sampling,
             init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
@@ -245,6 +254,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             use_hardcat=unused_kwargs['use_hardcat'],
             learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
+            batch_sampling=batch_sampling,
             init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],
@@ -264,6 +274,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             use_hardcat=unused_kwargs['use_hardcat'],
             learn_cat=unused_kwargs['learn_categorical'],
             p_init=self.p_init,
+            batch_sampling=batch_sampling,
             init_cat=unused_kwargs['init_categorical'],
             constant_grouping=unused_kwargs['constant_grouping'],
             group_connection=unused_kwargs['group_connection'],

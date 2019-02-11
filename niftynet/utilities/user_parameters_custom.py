@@ -411,6 +411,14 @@ def __add_multitask_args(parser):
     )
 
     parser.add_argument(
+        "--batch_sampling",
+        metavar='',
+        help="[Method option] Sample GS or Categorical per subject in batch",
+        type=str2boolean,
+        default=False
+    )
+
+    parser.add_argument(
         "--init_categorical",
         metavar='',
         help="Set initial categorical probabilities e.g. (1/3, 1/3, 1/3)",
