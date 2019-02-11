@@ -1129,8 +1129,12 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 dirichlet_p = tf.constant(dirichlet_init)
 
             if self.batch_sampling:
+                if type(input_tensor) is list:
+                    batch_size = input_tensor[0].shape[0]
+                else:
+                    batch_size = input_tensor.shape[0]
                 dirichlet_p = tf.expand_dims(dirichlet_p, 0)
-                dirichlet_p = tf.tile(dirichlet_p, [input_tensor.shape[0], 1, 1])
+                dirichlet_p = tf.tile(dirichlet_p, [batch_size, 1, 1])
 
         if self.constant_grouping:
             # create constant grouping / no sampling at each iteration

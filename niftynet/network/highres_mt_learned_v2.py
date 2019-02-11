@@ -322,7 +322,13 @@ class LearnedMTHighRes3DNet2(BaseNet):
         # set training properties
         if is_training:
             self._print(layer_instances)
-            cat_ps = [x[0] for x in cat_instances]
+            if batch_sampling:
+                # The p's have been broadcasted to allow sampling independently across the batch
+                # Reshape back to [n_kernels, n_class] shape
+                # The p's should be tiled so can just any slice [i, :, :]
+                cat_ps = [x[0][0, ...] for x in cat_instances]
+            else:
+                cat_ps = [x[0] for x in cat_instances]
             return net_out, cat_ps
 
         cat_ps = [x[0] for x in cat_instances]
