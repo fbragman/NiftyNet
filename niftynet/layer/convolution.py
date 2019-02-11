@@ -988,7 +988,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  w_regularizer=None,
                  b_initializer=None,
                  b_regularizer=None,
-                 moving_decay=0.,
+                 moving_decay=0.9,
                  eps=1e-5,
                  name="conv"):
 
