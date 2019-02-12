@@ -141,12 +141,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by summation since using
-        # normed convolutions
-        task_1 = clustered_res_block[0] + clustered_res_block[1]
-        task_2 = clustered_res_block[2] + clustered_res_block[1]
-        shared = clustered_res_block[1]
-        output_res_blocks = [task_1, shared, task_2]
+        # Do not need diagonal connections between specific ResBlock channels [task1, shared, task2]
+        # Diagonal connections happen beforehand
 
         params = self.layers[2]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
@@ -164,7 +160,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -193,13 +189,6 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by summation since using
-        # normed convolutions
-        task_1 = clustered_res_block[0] + clustered_res_block[1]
-        task_2 = clustered_res_block[2] + clustered_res_block[1]
-        shared = clustered_res_block[1]
-        output_res_blocks = [task_1, shared, task_2]
-
         params = self.layers[4]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
             n_output_chns=params['n_features'],
@@ -216,7 +205,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -245,13 +234,6 @@ class LearnedMTHighRes3DNet2(BaseNet):
                     layer_instances.append((res_block, dilated.tensor))
             clustered_res_block.append(dilated.tensor)
 
-        # merging of task-specific and task-invariant features by summation since using
-        # normed convolutions
-        task_1 = clustered_res_block[0] + clustered_res_block[1]
-        task_2 = clustered_res_block[2] + clustered_res_block[1]
-        shared = clustered_res_block[1]
-        output_res_blocks = [task_1, shared, task_2]
-
         params = self.layers[6]
         conv_layer = LearnedCategoricalGroupConvolutionalLayer(
             n_output_chns=params['n_features'],
@@ -268,7 +250,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(output_res_blocks, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -383,20 +365,19 @@ class HighResBlock(TrainableLayer):
             acti_op = ActiLayer(func=self.acti_func,
                                 regularizer=self.regularizers['w'],
                                 name='acti_{}'.format(i))
-            masked_conv_op = MTConvLayer(n_output_chns=self.n_output_chns,
-                                         batch_sampling=batch_sampling,
-                                         kernel_size=k,
-                                         stride=1,
-                                         w_initializer=self.initializers['w'],
-                                         w_regularizer=self.regularizers['w'],
-                                         name='masked_res_conv_{}'.format(i))
+            conv_op = ConvLayer(n_output_chns=self.n_output_chns,
+                                kernel_size=k,
+                                stride=1,
+                                w_initializer=self.initializers['w'],
+                                w_regularizer=self.regularizers['w'],
+                                name='conv_{}'.format(i))
             # connect layers
             if mask is None:
                 output_tensor = bn_op(output_tensor, is_training)
             else:
                 output_tensor = bn_op(output_tensor, is_training, kernel_mask=mask)
             output_tensor = acti_op(output_tensor)
-            output_tensor = masked_conv_op(output_tensor, mask)
+            output_tensor = conv_op(output_tensor)
         # make residual connections
         if self.with_res:
             output_tensor = ElementwiseLayer('SUM')(output_tensor, input_tensor)
