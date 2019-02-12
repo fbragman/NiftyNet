@@ -133,12 +133,12 @@ class MTConvLayer(TrainableLayer):
                                                   padding=self.padding,
                                                   name="conv")
 
-                # Convert mask from [batch_size, num_kernels] to [batch_size, 1, 1, num_kernels]
-                task_mask = tf.expand_dims(task_mask, 1)
-                task_mask = tf.expand_dims(task_mask, 1)
-                task_mask = tf.broadcast_to(task_mask, tf.shape(output_tensor))
-                output_tensor = output_tensor * task_mask
-
+                # Reshape to [batch_size, num_kernel, H, W]
+                output_tensor = tf.transpose(output_tensor, perm=[0, 3, 1, 2])
+                # Broadcasted multiplication by [batch_size, num_kernel, 1, 1] * [batch_size, num_kernel, H, W]
+                output_tensor = tf.expand_dims(tf.expand_dims(task_mask, -1), -1) * output_tensor
+                # Reshape to [batch_size, H, W, num_kernel]
+                output_tensor = tf.transpose(output_tensor, perm=[0, 2, 3, 1])
         else:
             output_tensor = tf.nn.convolution(input=input_tensor,
                                               filter=conv_kernel,
