@@ -1164,7 +1164,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                     with tf.variable_scope('categorical_sampling'):
                         cat_dist = GumbelSoftmax(dirichlet_p, tau)
                         # Sample from mask - [N by 3] either one-hot (use_hardcat=True) or soft (use_hardcat=False)
-                        cat_mask = cat_dist(hard=self.use_hardcat, is_training=True)
+                        cat_mask = cat_dist(hard=self.use_hardcat, is_training=is_training)
                         cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
 
             else:
@@ -1216,14 +1216,35 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
-                # task 1 tensor
-                task_1_tensor = output_layers[0] + output_layers[1]
 
-                # task 2 tensor
-                task_2_tensor = output_layers[2] + output_layers[1]
-
-                # shared tensor
+                # Tensor concat with 1D conv to get it back to dimension
+                task_1_tensor = tf.concat([output_layers[0], output_layers[1]], axis=-1)
+                task_2_tensor = tf.concat([output_layers[2], output_layers[1]], axis=-1)
                 shared_tensor = output_layers[1]
+
+                # 1x1 conv of task_1 and task_2 tensors
+                task_1_dr = ConvolutionalLayer(
+                    n_output_chns=self.n_output_chns,
+                    kernel_size=1,
+                    acti_func=None,
+                    with_bn=False,
+                    with_bias=True,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='task_1_dr')
+
+                task_2_dr = ConvolutionalLayer(
+                    n_output_chns=self.n_output_chns,
+                    kernel_size=1,
+                    acti_func=None,
+                    with_bn=False,
+                    with_bias=True,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='task_1_dr')
+
+                task_1_tensor = task_1_dr(task_1_tensor, is_training)
+                task_2_tensor = task_2_dr(task_2_tensor, is_training)
 
         elif self.group_connection == 'separate':
             with tf.name_scope('separate_tensor_merge'):
