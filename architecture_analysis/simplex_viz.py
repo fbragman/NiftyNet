@@ -1,6 +1,7 @@
 import ternary
 import numpy as np
 
+
 def draw_trajectory(list_of_dist, ax):
 
     tax = ternary.TernaryAxesSubplot(ax=ax)
@@ -8,9 +9,9 @@ def draw_trajectory(list_of_dist, ax):
     tax.boundary(linewidth=2.0, axes_colors=axes_colors)
 
     tax.gridlines(multiple=0.1, linewidth=1,
-                  horizontal_kwargs={'color': axes_colors['b']},
-                  left_kwargs={'color': axes_colors['l']},
-                  right_kwargs={'color': axes_colors['r']},
+                  right_kwargs={'color': axes_colors['b']},
+                  horizontal_kwargs={'color': axes_colors['l']},
+                  left_kwargs={'color': axes_colors['r']},
                   alpha=0.7)
 
     # iterate over kernel
@@ -28,11 +29,11 @@ def draw_trajectory(list_of_dist, ax):
     # Set and format axes ticks.
     scale = 10
     ticks = [i / float(scale) for i in range(scale + 1)]
-    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=False,
+    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=True,
               axes_colors=axes_colors, offset=0.04, tick_formats="%0.1f")
 
 
-def draw_heat_contours(dist, ax, sigma=None, scale=None):
+def draw_heat_contours(dist, ax, sigma=None, scale=None, is_permute=True):
 
     if scale is None:
         nbins = 11
@@ -45,8 +46,11 @@ def draw_heat_contours(dist, ax, sigma=None, scale=None):
     axes_colors = {'b': 'g', 'l': 'r', 'r': 'b'}
     tax.boundary(linewidth=2.0, axes_colors=axes_colors)
 
-    x = [p[1] for p in dist]
-    y = [p[0] for p in dist]
+    if is_permute:
+        dist = dist[:, [1, 2, 0]]
+
+    x = [p[0] for p in dist]
+    y = [p[1] for p in dist]
     z = [p[2] for p in dist]
     xyz = np.array([x, y, z]).T
 
@@ -85,7 +89,7 @@ def draw_heat_contours(dist, ax, sigma=None, scale=None):
               axes_colors=axes_colors, offset=0.04, tick_formats="%0.1f")
 
 
-def draw_pdf_contours(dist, ax, is_permute=False):
+def draw_pdf_contours(dist, ax, is_permute=True):
 
     axes_colors = {'b': 'g', 'l': 'r', 'r': 'b'}
 
@@ -93,13 +97,13 @@ def draw_pdf_contours(dist, ax, is_permute=False):
     tax.boundary(linewidth=2.0, axes_colors=axes_colors)
 
     tax.gridlines(multiple=0.1, linewidth=1,
-                  horizontal_kwargs={'color': axes_colors['b']},
-                  left_kwargs={'color': axes_colors['l']},
-                  right_kwargs={'color': axes_colors['r']},
+                  right_kwargs={'color': axes_colors['b']},
+                  horizontal_kwargs={'color': axes_colors['l']},
+                  left_kwargs={'color': axes_colors['r']},
                   alpha=0.7)
 
     if is_permute:
-        dist = dist[:, [1, 0, 2]]
+        dist = dist[:, [1, 2, 0]]
 
     # Plot a few different styles with a legend
     tax.scatter(dist, s=20, marker='o', facecolors=None,
@@ -116,5 +120,5 @@ def draw_pdf_contours(dist, ax, is_permute=False):
     # Set and format axes ticks.
     scale = 10
     ticks = [i / float(scale) for i in range(scale + 1)]
-    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=False,
+    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=True,
               axes_colors=axes_colors, offset=0.04, tick_formats="%0.1f")
