@@ -70,6 +70,10 @@ SUPPORTED_NETWORK = {
     "vgg16net_gap": 'niftynet.network.vggnet_gap.VGG16Net',
     "se_resnet": 'niftynet.network.se_resnet.SE_ResNet',
 
+    # baseline
+    "highres3dnet_iccv":
+        'niftynet.network.highres3dnet_iccv.HighRes3DNetV2',
+
     # multitask
     "vgg_learned_mt": 'niftynet.network.vgg_mt_learned.LearnedMTVGG16Net',
     "vgg_mt_baseline_1": 'niftynet.network.vgg_mt.MT1_VGG16Net',
