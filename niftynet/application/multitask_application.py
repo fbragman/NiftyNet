@@ -419,7 +419,7 @@ class MultiTaskApplication(BaseApplication):
 
             # Multi-task loss
             weight_loss_1 = 1.
-            weight_loss_2 = 0.20
+            weight_loss_2 = 1.
             data_loss = weight_loss_1 * data_loss_task_1 + weight_loss_2 * data_loss_task_2
 
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
