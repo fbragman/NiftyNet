@@ -418,9 +418,11 @@ class MultiTaskApplication(BaseApplication):
                     collection=TF_SUMMARIES)
 
             # Multi-task loss
-            data_loss = data_loss_task_1 + data_loss_task_2
-            reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+            weight_loss_1 = 1.
+            weight_loss_2 = 0.20
+            data_loss = weight_loss_1 * data_loss_task_1 + weight_loss_2 * data_loss_task_2
 
+            reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
             if self.net_param.decay > 0.0 and reg_losses:
                 reg_loss = tf.reduce_mean(
                     [tf.reduce_mean(reg_loss) for reg_loss in reg_losses])
