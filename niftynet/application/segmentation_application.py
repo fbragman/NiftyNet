@@ -412,3 +412,32 @@ class SegmentationApplication(BaseApplication):
 
     def add_inferred_output(self, data_param, task_param):
         return self.add_inferred_output_like(data_param, task_param, 'label')
+
+    def set_iteration_update(self, iteration_message):
+        """
+        At each iteration ``application_driver`` calls::
+
+            output = tf.session.run(variables_to_eval, feed_dict=data_dict)
+
+        to evaluate TF graph elements, where
+        ``variables_to_eval`` and ``data_dict`` are retrieved from
+        ``iteration_message.ops_to_run`` and
+        ``iteration_message.data_feed_dict``
+         (In addition to the variables collected by self.output_collector).
+
+        The output of `tf.session.run(...)` will be stored at
+        ``iteration_message.current_iter_output``, and can be accessed
+        from ``engine.handler_network_output.OutputInterpreter``.
+
+        override this function for more complex operations
+        (such as learning rate decay) according to
+        ``iteration_message.current_iter``.
+        """
+        if iteration_message.is_training:
+            iteration_message.data_feed_dict[self.is_validation] = False
+        elif iteration_message.is_validation:
+            iteration_message.data_feed_dict[self.is_validation] = True
+
+        #if self.is_training:
+        #    iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
+        #        iteration_message.current_iter
