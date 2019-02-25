@@ -85,7 +85,7 @@ class HighRes3DNetV2(BaseNet):
             {'name': 'res_2', 'n_features': int(32*scale), 'kernels': (3, 3), 'repeat': 3},
             {'name': 'conv_2', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'res_3', 'n_features': int(64*scale), 'kernels': (3, 3), 'repeat': 3},
-            {'name': 'conv_3', 'n_features': int(64*scale), 'kernel_size': 1},
+            {'name': 'conv_3', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'conv_4', 'n_features': int(64*scale), 'kernel_size': 3},
             {'name': 'output', 'n_features': num_classes, 'kernel_size': 1}]
 
@@ -97,15 +97,15 @@ class HighRes3DNetV2(BaseNet):
         layer_instances = []
 
         params = self.layers[0]
-        first_conv_layer = ConvolutionalLayer(
+        conv_layer_0 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        flow = first_conv_layer(images, is_training)
-        layer_instances.append((first_conv_layer, flow))
+        flow = conv_layer_0(images, is_training)
+        layer_instances.append((conv_layer_0, flow))
 
         params = self.layers[1]
         with DilatedTensor(flow, dilation_factor=1) as dilated:
@@ -122,15 +122,15 @@ class HighRes3DNetV2(BaseNet):
         flow = dilated.tensor
 
         params = self.layers[2]
-        first_conv_layer = ConvolutionalLayer(
+        conv_layer_1 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        flow = first_conv_layer(flow, is_training)
-        layer_instances.append((first_conv_layer, flow))
+        flow = conv_layer_1(flow, is_training)
+        layer_instances.append((conv_layer_1, flow))
 
         params = self.layers[3]
         with DilatedTensor(flow, dilation_factor=2) as dilated:
@@ -147,15 +147,15 @@ class HighRes3DNetV2(BaseNet):
         flow = dilated.tensor
 
         params = self.layers[4]
-        first_conv_layer = ConvolutionalLayer(
+        conv_layer_2 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        flow = first_conv_layer(flow, is_training)
-        layer_instances.append((first_conv_layer, flow))
+        flow = conv_layer_2(flow, is_training)
+        layer_instances.append((conv_layer_2, flow))
 
         params = self.layers[5]
         with DilatedTensor(flow, dilation_factor=4) as dilated:
@@ -172,32 +172,33 @@ class HighRes3DNetV2(BaseNet):
         flow = dilated.tensor
 
         params = self.layers[6]
-        first_conv_layer = ConvolutionalLayer(
+        conv_layer_3 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        flow = first_conv_layer(flow, is_training)
-        layer_instances.append((first_conv_layer, flow))
+        flow = conv_layer_3(flow, is_training)
+        layer_instances.append((conv_layer_3, flow))
 
         params = self.layers[7]
-        fc_layer = ConvolutionalLayer(
+        conv_layer_4 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=self.acti_func,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        flow = fc_layer(flow, is_training)
-        layer_instances.append((fc_layer, flow))
+        flow = conv_layer_4(flow, is_training)
+        layer_instances.append((conv_layer_4, flow))
 
         params = self.layers[8]
         fc_layer = ConvolutionalLayer(
             n_output_chns=params['n_features'],
             kernel_size=params['kernel_size'],
             acti_func=None,
+            with_bn=False,
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
