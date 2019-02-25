@@ -56,8 +56,8 @@ class HighRes3DNetV2(BaseNet):
 
     def __init__(self,
                  num_classes,
-                 layer_scale,
-                 p_init,
+                 layer_scale=1,
+                 p_init=None,
                  w_initializer=None,
                  w_regularizer=None,
                  b_initializer=None,
