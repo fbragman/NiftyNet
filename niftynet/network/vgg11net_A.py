@@ -11,7 +11,7 @@ from niftynet.layer.fully_connected import FullyConnectedLayer
 import tensorflow as tf
 
 
-class vgg11net_A(BaseNet):
+class VGG11Net_A(BaseNet):
     """
     Implementation of VGG16-Net:
         Simonyan and Zisserman, "Very Deep Convolutional Networks for
@@ -34,7 +34,7 @@ class vgg11net_A(BaseNet):
                  acti_func='prelu',
                  name='VGG11Net_A'):
 
-        super(vgg11net_A, self).__init__(
+        super(VGG11Net_A, self).__init__(
             num_classes=num_classes,
             w_initializer=w_initializer,
             w_regularizer=w_regularizer,
