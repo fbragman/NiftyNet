@@ -68,7 +68,7 @@ SUPPORTED_NETWORK = {
     "resnet": 'niftynet.network.resnet.ResNet',
     "vgg16net": 'niftynet.network.vggnet.VGG16Net',
     "vgg16net_gap": 'niftynet.network.vggnet_gap.VGG16Net',
-    "vgg11net_A": 'niftynet.network.vgg11net_A.VGG11NetA',
+    "vgg11net_A": 'niftynet.network.vgg11net_A.VGG11Net_A',
     "se_resnet": 'niftynet.network.se_resnet.SE_ResNet',
 
     # baseline
