@@ -68,6 +68,7 @@ SUPPORTED_NETWORK = {
     "resnet": 'niftynet.network.resnet.ResNet',
     "vgg16net": 'niftynet.network.vggnet.VGG16Net',
     "vgg16net_gap": 'niftynet.network.vggnet_gap.VGG16Net',
+    "vgg11net_A": 'niftynet.network.vgg11net_A.VGG11NetA',
     "se_resnet": 'niftynet.network.se_resnet.SE_ResNet',
 
     # baseline
@@ -237,8 +238,11 @@ SUPPORTED_EVENT_HANDLERS = {
     'console_logger':
         'niftynet.engine.handler_console.ConsoleLogger',
     'tensorboard_logger':
-        'niftynet.engine.handler_tensorboard.TensorBoardLogger'
+        'niftynet.engine.handler_tensorboard.TensorBoardLogger',
 }
+
+#    #'output_saver':
+    #    'niftynet.engine.handler_network_output.OutputSaver'
 
 SUPPORTED_ITERATION_GENERATORS = {
     'iteration_generator':
