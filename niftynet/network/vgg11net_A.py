@@ -86,6 +86,7 @@ class VGG11Net_A(BaseNet):
             if layer_iter == len(self.layers)-1:
                 fc_layer = FullyConnectedLayer(
                     n_output_chns=layer['n_features'],
+                    with_bn=False,
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                 )
@@ -112,14 +113,14 @@ class VGG11Net_A(BaseNet):
 
             elif layer_type == 'layer':
 
-                for _ in range(repeat_conv):
+                for it in range(repeat_conv):
                     conv_layer = ConvolutionalLayer(
                         n_output_chns=layer['n_features'],
                         kernel_size=layer['kernel_size'],
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
-                        name=layer['name'])
+                        name=layer['name'] + '_conv_{}'.format(it))
                     flow = conv_layer(flow, is_training)
                     layer_instances.append((conv_layer, flow))
 
