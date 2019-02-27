@@ -18,6 +18,9 @@ class MT1_VGG16Net(BaseNet):
         2) we use global average pooling instead of multiple FC units
             e.g. fc (1x1) --> l2 loss (age regression)
                  fc (1x2) --> binary softmax cross entropy (gender - 0/1)
+
+    This is actually MT VGG11 with GAP
+
     """
 
     def __init__(self,
@@ -49,11 +52,11 @@ class MT1_VGG16Net(BaseNet):
             {'name': 'maxpool_1'},
             {'name': 'layer_2', 'n_features': int(128/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': int(256/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_3', 'n_features': int(256/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_4', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_5', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'gap'}]
 
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
