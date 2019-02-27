@@ -144,14 +144,14 @@ class MT1_VGG16Net(BaseNet):
 
             elif layer_type == 'layer':
 
-                for _ in range(repeat_conv):
+                for it in range(repeat_conv):
                     conv_layer = ConvolutionalLayer(
                         n_output_chns=layer['n_features'],
                         kernel_size=layer['kernel_size'],
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
-                        name=layer['name'])
+                        name=layer['name'] + '_conv_{}'.format(it))
                     flow = conv_layer(flow, is_training)
                     layer_instances.append((conv_layer, flow))
 
