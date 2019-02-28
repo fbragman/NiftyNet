@@ -67,11 +67,11 @@ class LearnedMTVGG16Net(BaseNet):
             {'name': 'maxpool_1'},
             {'name': 'layer_2', 'n_features': int(128/scale), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': int(256/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_3', 'n_features': int(256/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_4', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_5', 'n_features': int(512/scale), 'kernel_size': 3, 'repeat': 2},
             {'name': 'gap'}]
 
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
@@ -226,7 +226,7 @@ class LearnedMTVGG16Net(BaseNet):
 
             elif layer_type == 'layer':
 
-                for _ in range(repeat_conv):
+                for it in range(repeat_conv):
                     conv_layer = LearnedCategoricalGroupConvolutionalLayer(
                         n_output_chns=layer['n_features'],
                         kernel_size=layer['kernel_size'],
@@ -240,7 +240,7 @@ class LearnedMTVGG16Net(BaseNet):
                         acti_func=self.acti_func,
                         w_initializer=self.initializers['w'],
                         w_regularizer=self.regularizers['w'],
-                        name=layer['name'])
+                        name=layer['name'] + '_conv_{}'.format(it))
                     grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau, is_training)
                     layer_instances.append((conv_layer, grouped_flow))
                     mask_instances.append((d_p, learned_mask))
