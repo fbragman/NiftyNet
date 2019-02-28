@@ -59,9 +59,10 @@ class HardCategorical(object):
         Create one-hot mask for N rows based on proportions defined by probabilities
         :return:
         """
-        num = self.p * self.N
-        num = [int(x) for x in num]
+        num = [int(p*self.N) for p in self.p]
         num_sum = np.sum(num)
+
+        # Check if rounding to int changes number of rows
         if num_sum != self.N:
             # difference in expected number
             delta = self.N - num_sum
@@ -71,8 +72,8 @@ class HardCategorical(object):
 
         onehot = np.zeros((self.N, 3), dtype=np.float32)
         onehot[:num[0], 0] = 1
-        onehot[num[0]:num[1]+num[2], 1] = 1
-        onehot[num[1]+num[2]:-1, 2] = 1
+        onehot[num[0]:num[0]+num[1], 1] = 1
+        onehot[num[0]+num[1]:, 2] = 1
 
         cat_mask = tf.constant(onehot, dtype=tf.float32)
         return cat_mask
