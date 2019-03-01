@@ -104,6 +104,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_regularizer=self.regularizers['w'],
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
+        layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
         # Output of grouped_flow is a list: [task_1, shared, task_2]
