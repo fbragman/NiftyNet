@@ -6,32 +6,28 @@ import re
 import matplotlib.pyplot as plt
 
 
-def analyse_validation_loss(path_to_log, path_to_checkpoints, task_flag):
+def get_flags_to_look(task_type, model_type):
+
+    if task_type is 'multi':
+        if model_type is 'face':
+            task_1 = 'task_1_mae'
+            task_2 = 'task_2_accuracy'
+            recip = [True, False]
+
+    return task_1, task_2, recip
+
+
+def analyse_validation_loss(path_to_log, path_to_checkpoints, task_type, model_type):
 
     while True:
         log_file = join(path_to_log, 'training_niftynet_log')
         print(log_file)
         # get training data from console output
-        validation_lines = get_validation_lines(log_file, task_flag)
+        validation_lines = get_validation_lines(log_file)
 
-        if task_flag == 1:
-            task_1 = 'task_1_accuracy'
-            task_2 = 'task_2_mae'
-            recip = [False, True]
-        elif task_flag == 2:
-            task_1 = 'task_1_classification'
-            task_2 = 'task_2_classification'
-            recip = [True, True]
-        elif task_flag == 3:
-            task_1 = 'loss'
-            task_2 = None
-            recip = [True, False]
-        elif task_flag == 4:
-            task_1 = 'data_loss'
-            task_2 = None
-            recip = [True, False]
+        task_1, task_2, recip = get_flags_to_look(task_type, model_type)
 
-        iter = calculate_best_val_loss(validation_lines, task_1, task_2, path_to_log, recip)
+        iter = calculate_best_val_loss(validation_lines, task_1, task_2, path_to_log, recip, task_1, task_2)
 
         # find saved tensorflow checkpoints and saved iteration closest to global_iter
         closest_check_point_iter = search_checkpoints(path_to_checkpoints, iter)
@@ -41,7 +37,7 @@ def analyse_validation_loss(path_to_log, path_to_checkpoints, task_flag):
         return False
 
 
-def calculate_best_val_loss(val_lines, str_1, str_2, save_path, recip):
+def calculate_best_val_loss(val_lines, str_1, str_2, save_path, recip, xlabel, ylabel):
 
     # Calculate average per validation iteration
     iters = get_data(val_lines, 'iter')
@@ -89,7 +85,7 @@ def calculate_best_val_loss(val_lines, str_1, str_2, save_path, recip):
     best_iter = unique_iters[max_idx]
 
     plot_validation_loss(unique_iters, loss_val_1, loss_val_2,
-                         filtered_1, filtered_2, best_iter, save_path)
+                         filtered_1, filtered_2, best_iter, save_path, xlabel, ylabel)
 
     return best_iter
 
@@ -131,7 +127,7 @@ def get_numerical_value(input_data, int_start, var):
             return result
 
 
-def get_validation_lines(log_file, task_flag):
+def get_validation_lines(log_file):
     if os.path.exists(log_file):
         with open(log_file, 'r') as f:
             log = list(f)
@@ -175,13 +171,13 @@ def get_validation_lines(log_file, task_flag):
         return False
 
 
-def plot_validation_loss(x, y_1, y_2, z_1, z_2, best_iter, save_path):
+def plot_validation_loss(x, y_1, y_2, z_1, z_2, best_iter, save_path, xlabel, ylabel):
 
     fig, ax1 = plt.subplots()
 
     color = 'tab:red'
     ax1.set_xlabel('global iteration')
-    ax1.set_ylabel('classification accuracy', color=color)
+    ax1.set_ylabel(xlabel, color=color)
     ax1.plot(x, y_1, color=color, alpha=0.5)
     ax1.plot(x, z_1, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
@@ -191,7 +187,7 @@ def plot_validation_loss(x, y_1, y_2, z_1, z_2, best_iter, save_path):
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
     color = 'tab:blue'
-    ax2.set_ylabel('regression mae', color=color)  # we already handled the x-label with ax1
+    ax2.set_ylabel(ylabel, color=color)  # we already handled the x-label with ax1
     ax2.plot(x, y_2, color=color, alpha=0.5)
     ax2.plot(x, z_2, color=color)
     ax2.tick_params(axis='y', labelcolor=color)
