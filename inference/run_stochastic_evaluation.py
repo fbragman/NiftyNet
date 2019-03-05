@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet')
+
 import argparse
 import os
 import pandas as pd
@@ -27,6 +30,8 @@ def calculate_mae(results):
         vals = res[1:]
         # destroy -69.69 if exist
         vals = np.delete(vals, np.argwhere(vals == -69.69))
+        # If network prediction is -ive, set to age = 0
+        vals[vals<0] = 0
         mean_val = np.mean(vals) * 100
         std_val = np.std(vals) * 100
         mae.append(np.abs(gt_val - mean_val))
@@ -89,6 +94,8 @@ def main(path_to_res, num_tasks, t1, t2):
     if t1 is not None:
         path_to_res_1 = os.path.join(path_to_res, t1 + '.csv')
         type_1 = t1.split('_')[1]
+        print(path_to_res_1)
+        print(type_1)
 
     if t2 is not None:
         path_to_res_2 = os.path.join(path_to_res, t2 + '.csv')
@@ -98,24 +105,22 @@ def main(path_to_res, num_tasks, t1, t2):
 
     if os.path.exists(path_to_res_1):
 
-        if os.path.exists(path_to_res_1):
+        res_1 = pd.read_csv(path_to_res_1, header=None)
+        if type_1 == 'regression':
+            reg_results = calculate_mae(res_1.values)
+            print('MAE: {} std: {}'.format(reg_results[0], reg_results[1]))
+        else:
+            acc_result = calculate_mode(res_1.values)
+            print('Accuracy: {}'.format(acc_result))
 
-            res_1 = pd.read_csv(path_to_res_1, header=None)
-            if type_1 == 'regression':
-                reg_results = calculate_mae(res_1.values)
+        if t2 is not None:
+            res_2 = pd.read_csv(path_to_res_2, header=None)
+            if type_2 == 'regression':
+                reg_results = calculate_mae(res_2.values)
                 print('MAE: {} std: {}'.format(reg_results[0], reg_results[1]))
             else:
-                acc_result = calculate_mode(res_1.values)
+                acc_result = calculate_mode(res_2.values)
                 print('Accuracy: {}'.format(acc_result))
-
-            if t2 is not None:
-                res_2 = pd.read_csv(path_to_res_2, header=None)
-                if type_2 == 'regression':
-                    reg_results = calculate_mae(res_2.values)
-                    print('MAE: {} std: {}'.format(reg_results[0], reg_results[1]))
-                else:
-                    acc_result = calculate_mode(res_2.values)
-                    print('Accuracy: {}'.format(acc_result))
 
     else:
 
@@ -139,7 +144,7 @@ def main(path_to_res, num_tasks, t1, t2):
             task_names = ['_'.join(x.split('_')[4:]) for x in patient_results]
             task_names = list(set(task_names))
             task_names = [x for x in task_names if x is not '']
-            task_names = [x for x in task_names if 'task' in x]
+            task_names = [x for x in task_names if 'task' in x or 'niftynet' in x]
             #patient_uniq = ['_'.join(x.split('_')[:-1]) for x in patient_uniq]
 
             print(task_names)
