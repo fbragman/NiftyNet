@@ -171,14 +171,15 @@ if __name__ == "__main__":
     config.set('INFERENCE', 'output_interp_order', -1)
     config.set('INFERENCE', 'spatial_window_size', (200, 200))
 
-    tmp_config = os.path.splitext(args.config_path)[0] + '_tmp.ini'
-    print('CREATING TMP CONFIG FILE')
-    with open(tmp_config, 'w') as pf:
-        config.write(pf)
-
     root_output = os.path.join(args.output_prefix, eval_set)
 
     for i in range(int(args.n_evaluations)):
+
+        tmp_config = os.path.splitext(args.config_path)[0] + '_tmp_iter_{}.ini'.format(i)
+        print('CREATING TMP CONFIG FILE')
+        with open(tmp_config, 'w') as pf:
+            config.write(pf)
+
         output_dir = os.path.join(root_output, 'output_iter_' + str(i).zfill(n_to_zfill))
 
         if not os.path.exists(output_dir):
@@ -197,15 +198,15 @@ if __name__ == "__main__":
             print('SAVING TMP CONFIG FILE')
             config.write(pf)
 
-        try:
-            if args.tasks == 'multi':
-                calling_function(pyconda, multi_task_app, tmp_config)
-            elif args.tasks == 'class':
-                calling_function(pyconda, class_app, tmp_config)
-            else:
-                calling_function(pyconda, reg_app, tmp_config)
-
-        except:
-            print('END OF FUNCTION CALL')
-            continue
+        # try:
+        #     if args.tasks == 'multi':
+        #         calling_function(pyconda, multi_task_app, tmp_config)
+        #     elif args.tasks == 'class':
+        #         calling_function(pyconda, class_app, tmp_config)
+        #     else:
+        #         calling_function(pyconda, reg_app, tmp_config)
+        #
+        # except:
+        #     print('END OF FUNCTION CALL')
+        #     continue
 
