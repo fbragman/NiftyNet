@@ -107,15 +107,26 @@ def str2boolean(input):
 
 if __name__ == "__main__":
 
-    multi_task_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_multitask.py'
-    reg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_regress.py'
-    class_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_classify.py'
-    seg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_segment.py'
-
-    pyconda = '/home/fbragman/miniconda3/envs/tf_d/bin/python'
 
     args = get_user_params()
     extra_args = []
+
+    if args.local is True:
+
+        multi_task_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_multitask.py'
+        reg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_regress.py'
+        class_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_classify.py'
+        seg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_segment.py'
+        pyconda = '/home/fbragman/miniconda3/envs/tf_d/bin/python'
+
+    else:
+
+        nn = '/home/fbragman/code/NiftyNet'
+        multi_task_app = os.path.join(nn, 'net_multitask.py')
+        reg_app = os.path.join(nn, 'net_regress.py')
+        class_app = os.path.join(nn, 'net_classify.py')
+        seg_app = os.path.join(nn, 'net_segment.py')
+        pyconda = 'python3'
 
     config = configparser.RawConfigParser()
     config.read(args.config_path)
@@ -186,15 +197,15 @@ if __name__ == "__main__":
             print('SAVING TMP CONFIG FILE')
             config.write(pf)
 
-        # try:
-        #     if args.tasks == 'multi':
-        #         calling_function(pyconda, multi_task_app, tmp_config)
-        #     elif args.tasks == 'class':
-        #         calling_function(pyconda, class_app, tmp_config)
-        #     else:
-        #         calling_function(pyconda, reg_app, tmp_config)
+        try:
+            if args.tasks == 'multi':
+                calling_function(pyconda, multi_task_app, tmp_config)
+            elif args.tasks == 'class':
+                calling_function(pyconda, class_app, tmp_config)
+            else:
+                calling_function(pyconda, reg_app, tmp_config)
 
-        # except:
-        #     print('END OF FUNCTION CALL')
-        #     continue
+        except:
+            print('END OF FUNCTION CALL')
+            continue
 
