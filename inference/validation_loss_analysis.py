@@ -6,18 +6,48 @@ import re
 import matplotlib.pyplot as plt
 
 
-def get_flags_to_look(task_type, model_type):
+def get_flags_to_look(task_type, model_type, recip_flag, reverse_flag):
 
-    if task_type is 'multi':
-        if model_type is 'face':
+    task_1 = None
+    task_2 = None
+    recip = [False, False]
+
+    if task_type == 'multi':
+        if model_type == 'face':
             task_1 = 'task_1_mae'
             task_2 = 'task_2_accuracy'
             recip = [True, False]
+    else:
+        if model_type == 'face':
+            task_2 = None
+            if recip_flag is True:
+                task_1 = 'loss'
+                recip = [True, False]
+            else:
+                task_1 = 'loss'
+                recip = [False, False]
+
+    if reverse_flag is True:
+        task_1, task_2 = task_2, task_1
+        task_1 = task_1.replace('2', '1')
+        task_2 = task_2.replace('1', '2')
+        recip[0], recip[1] = recip[1], recip[0]
 
     return task_1, task_2, recip
 
 
-def analyse_validation_loss(path_to_log, path_to_checkpoints, task_type, model_type):
+def analyse_validation_loss(path_to_log, path_to_checkpoints, task_type, model_type,
+                            flag, reverse_flag):
+    """
+
+    :param path_to_log:
+    :param path_to_checkpoints:
+    :param task_type: single or multi
+    :param model_type: face or prostate
+    :param flag: True or False - if True: regression, if False: segmentation/classification
+    :param reverse_flag: if True, it's because a random model had wrong order of tasks
+    :return:
+    """
 
     while True:
         log_file = join(path_to_log, 'training_niftynet_log')
@@ -25,7 +55,10 @@ def analyse_validation_loss(path_to_log, path_to_checkpoints, task_type, model_t
         # get training data from console output
         validation_lines = get_validation_lines(log_file)
 
-        task_1, task_2, recip = get_flags_to_look(task_type, model_type)
+        task_1, task_2, recip = get_flags_to_look(task_type,
+                                                  model_type,
+                                                  recip_flag=flag,
+                                                  reverse_flag=reverse_flag)
 
         iter = calculate_best_val_loss(validation_lines, task_1, task_2, path_to_log, recip, task_1, task_2)
 
@@ -64,9 +97,9 @@ def calculate_best_val_loss(val_lines, str_1, str_2, save_path, recip, xlabel, y
             loss_val_2.append(0)
 
     # Smooth both loss val
-    filtered_1 = scipy.ndimage.filters.median_filter(loss_val_1, size=50)
+    filtered_1 = scipy.ndimage.filters.median_filter(loss_val_1, size=10)
     if str_2 is not None:
-        filtered_2 = scipy.ndimage.filters.median_filter(loss_val_2, size=50)
+        filtered_2 = scipy.ndimage.filters.median_filter(loss_val_2, size=10)
     else:
         filtered_2 = loss_val_2
 
