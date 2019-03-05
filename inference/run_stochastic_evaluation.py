@@ -1,10 +1,7 @@
-import sys
-sys.path.append('/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet')
-
 import argparse
 import os
 import pandas as pd
-from inference.evaluation import get_prediction_parallel
+from evaluation import get_prediction_parallel
 import time
 import numpy as np
 from scipy import stats
