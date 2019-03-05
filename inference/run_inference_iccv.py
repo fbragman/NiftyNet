@@ -186,15 +186,15 @@ if __name__ == "__main__":
             print('SAVING TMP CONFIG FILE')
             config.write(pf)
 
-        try:
-            if args.tasks == 'multi':
-                calling_function(pyconda, multi_task_app, tmp_config)
-            elif args.tasks == 'class':
-                calling_function(pyconda, class_app, tmp_config)
-            else:
-                calling_function(pyconda, reg_app, tmp_config)
+        # try:
+        #     if args.tasks == 'multi':
+        #         calling_function(pyconda, multi_task_app, tmp_config)
+        #     elif args.tasks == 'class':
+        #         calling_function(pyconda, class_app, tmp_config)
+        #     else:
+        #         calling_function(pyconda, reg_app, tmp_config)
 
-        except:
-            print('END OF FUNCTION CALL')
-            continue
+        # except:
+        #     print('END OF FUNCTION CALL')
+        #     continue
 
