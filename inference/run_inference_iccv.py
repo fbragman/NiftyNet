@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 from pathlib import Path
-from inference.validation_loss_analysis import analyse_validation_loss
+from .inference.validation_loss_analysis import analyse_validation_loss
 from subprocess import call
 import configparser
 import os
