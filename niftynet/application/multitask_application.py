@@ -469,16 +469,17 @@ class MultiTaskApplication(BaseApplication):
             image = tf.cast(data_dict['image'], tf.float32)
 
             # Current_iteration: any value since we set tau = 0.05 if trianing to make it close to one-hot vector
-            current_iter = tf.constant(1)
+            current_iter = tf.constant(200000, dtype=tf.float32)
 
             # Optional arguments
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
+                        'is_validation': self.is_validation,
                         'keep_prob': self.net_param.keep_prob,
                         'current_iter': current_iter,
+                        'batch_sampling': self.multitask_param.batch_sampling,
                         'group_connection': self.multitask_param.group_connection,
                         'use_tau_annealing': self.multitask_param.use_tau_annealing,
                         'initial_tau': self.multitask_param.tau,
-                        'batch_sampling': self.multitask_param.batch_sampling,
                         'gs_anneal_r': self.multitask_param.gs_anneal_r,
                         'learn_categorical': self.multitask_param.learn_categorical,
                         'init_categorical': self.multitask_param.init_categorical,
