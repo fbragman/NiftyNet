@@ -77,6 +77,7 @@ SUPPORTED_NETWORK = {
 
     # multitask
     "vgg_learned_mt": 'niftynet.network.vgg_mt_learned.LearnedMTVGG16Net',
+    "vgg_learned_mt_pilot" : "niftynet.network.vgg_mt_learned_pilot.LearnedMTVGG16NetPilot",
     "vgg_mt_baseline_1": 'niftynet.network.vgg_mt.MT1_VGG16Net',
 
     "highres_mt_learned": 'niftynet.network.highres_mt_learned.LearnedMTHighRes3DNet',
