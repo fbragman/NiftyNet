@@ -1055,7 +1055,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False):
+    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False, concat_tensors=True):
 
         if self.with_bn:
             if is_training is None:
@@ -1217,34 +1217,45 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         if self.group_connection == 'mixed' or self.group_connection is None:
             with tf.name_scope('clustered_tensor_merge'):
 
-                # Tensor concat with 1D conv to get it back to dimension
-                task_1_tensor = tf.concat([output_layers[0], output_layers[1]], axis=-1)
-                task_2_tensor = tf.concat([output_layers[2], output_layers[1]], axis=-1)
-                shared_tensor = output_layers[1]
+                if concat_tensors is True:
 
-                # 1x1 conv of task_1 and task_2 tensors
-                task_1_dr = ConvolutionalLayer(
-                    n_output_chns=self.n_output_chns,
-                    kernel_size=1,
-                    acti_func=None,
-                    with_bn=False,
-                    with_bias=True,
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                    name='task_1_dr')
+                    # Concatenate sparse/soft tensors and 1x1 conv back to original shape
 
-                task_2_dr = ConvolutionalLayer(
-                    n_output_chns=self.n_output_chns,
-                    kernel_size=1,
-                    acti_func=None,
-                    with_bn=False,
-                    with_bias=True,
-                    w_initializer=self.initializers['w'],
-                    w_regularizer=self.regularizers['w'],
-                    name='task_1_dr')
+                    # Tensor concat with 1D conv to get it back to dimension
+                    task_1_tensor = tf.concat([output_layers[0], output_layers[1]], axis=-1)
+                    task_2_tensor = tf.concat([output_layers[2], output_layers[1]], axis=-1)
+                    shared_tensor = output_layers[1]
 
-                task_1_tensor = task_1_dr(task_1_tensor, is_training)
-                task_2_tensor = task_2_dr(task_2_tensor, is_training)
+                    # 1x1 conv of task_1 and task_2 tensors
+                    task_1_dr = ConvolutionalLayer(
+                        n_output_chns=self.n_output_chns,
+                        kernel_size=1,
+                        acti_func=None,
+                        with_bn=False,
+                        with_bias=True,
+                        w_initializer=self.initializers['w'],
+                        w_regularizer=self.regularizers['w'],
+                        name='task_1_dr')
+
+                    task_2_dr = ConvolutionalLayer(
+                        n_output_chns=self.n_output_chns,
+                        kernel_size=1,
+                        acti_func=None,
+                        with_bn=False,
+                        with_bias=True,
+                        w_initializer=self.initializers['w'],
+                        w_regularizer=self.regularizers['w'],
+                        name='task_1_dr')
+
+                    task_1_tensor = task_1_dr(task_1_tensor, is_training)
+                    task_2_tensor = task_2_dr(task_2_tensor, is_training)
+
+                else:
+
+                    # Add them
+                    task_1_tensor = output_layers[0] + output_layers[1]
+                    task_2_tensor = output_layers[2] + output_layers[1]
+                    shared_tensor = output_layers[1]
 
         elif self.group_connection == 'separate':
             with tf.name_scope('separate_tensor_merge'):
