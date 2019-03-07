@@ -433,6 +433,13 @@ def __add_multitask_args(parser):
         default=False
     )
 
+    parser.add_argument(
+        "--concat_tensors",
+        metavar='',
+        help="[Method option] either concat+1x1 conv or add sparse tensors",
+        type=str2boolean,
+        default=True)
+
     # Allow constant grouping
     # [1,0,0;1,0,0;0,1,0;0,0,1] automatically set based on init_categorical
     parser.add_argument(
