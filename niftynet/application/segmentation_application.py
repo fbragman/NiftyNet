@@ -373,7 +373,7 @@ class SegmentationApplication(BaseApplication):
             # classification probabilities or argmax classification labels
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
 
@@ -398,10 +398,18 @@ class SegmentationApplication(BaseApplication):
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             self.initialise_aggregator()
 
+    # def interpret_output(self, batch_output):
+    #     if self.is_inference:
+    #         return self.output_decoder.decode_batch(
+    #             batch_output['window'], batch_output['location'])
+    #     return True
+
     def interpret_output(self, batch_output):
         if self.is_inference:
+            tasks = list(batch_output.keys())[0:-1]
             return self.output_decoder.decode_batch(
-                batch_output['window'], batch_output['location'])
+                {tasks[0]: batch_output[tasks[0]]},
+                batch_output['location'])
         return True
 
     def initialise_evaluator(self, eval_param):
