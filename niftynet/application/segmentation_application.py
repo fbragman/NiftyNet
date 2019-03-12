@@ -354,6 +354,20 @@ class SegmentationApplication(BaseApplication):
                 average_over_devices=True, summary_type='scalar',
                 collection=TF_SUMMARIES)
 
+            # output DICE too
+            dice_loss = LossFunction(n_class=self.segmentation_param.num_classes,
+                                     loss_type='Dice')
+
+            reporting_string = 'task_1_dice'
+
+            data_loss_task_1 = dice_loss(
+                prediction=net_out[0],
+                ground_truth=data_dict['output_1'])
+
+            outputs_collector.add_to_collection(
+                var=data_loss_task_1, name=reporting_string,
+                average_over_devices=False, collection=CONSOLE)
+
             # outputs_collector.add_to_collection(
             #    var=image*180.0, name='image',
             #    average_over_devices=False, summary_type='image3_sagittal',
