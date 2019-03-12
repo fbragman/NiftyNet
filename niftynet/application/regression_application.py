@@ -355,7 +355,7 @@ class RegressionApplication(BaseApplication):
         elif self.is_inference:
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
             net_out = PostProcessingLayer('IDENTITY')(net_out)
