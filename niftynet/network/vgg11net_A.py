@@ -44,15 +44,15 @@ class VGG11Net_A(BaseNet):
             name=name)
 
         self.layers = [
-            {'name': 'layer_1', 'n_features': int(64/self.layer_scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_1', 'n_features': int(64/2), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_1'},
-            {'name': 'layer_2', 'n_features': int(128/self.layer_scale), 'kernel_size': 3, 'repeat': 1},
+            {'name': 'layer_2', 'n_features': int(128/2), 'kernel_size': 3, 'repeat': 1},
             {'name': 'maxpool_2'},
-            {'name': 'layer_3', 'n_features': int(256/self.layer_scale), 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_3', 'n_features': int(256/2), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_3'},
-            {'name': 'layer_4', 'n_features': int(512/self.layer_scale), 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_4', 'n_features': int(512/2), 'kernel_size': 3, 'repeat': 2},
             {'name': 'maxpool_4'},
-            {'name': 'layer_5', 'n_features': int(512/self.layer_scale), 'kernel_size': 3, 'repeat': 2},
+            {'name': 'layer_5', 'n_features': int(512/2), 'kernel_size': 3, 'repeat': 2},
             {'name': 'gap'},
             {'name': 'fc', 'n_features': self.num_classes}]
 
