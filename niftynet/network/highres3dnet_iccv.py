@@ -79,14 +79,14 @@ class HighRes3DNetV2(BaseNet):
         scale = self.layer_scale
 
         self.layers = [
-            {'name': 'conv_0', 'n_features': int(16*scale), 'kernel_size': 3},
-            {'name': 'res_1', 'n_features': int(16*scale), 'kernels': (3, 3), 'repeat': 2},
-            {'name': 'conv_1', 'n_features': int(32*scale), 'kernel_size': 3},
-            {'name': 'res_2', 'n_features': int(32*scale), 'kernels': (3, 3), 'repeat': 2},
-            {'name': 'conv_2', 'n_features': int(64*scale), 'kernel_size': 3},
-            {'name': 'res_3', 'n_features': int(64*scale), 'kernels': (3, 3), 'repeat': 2},
-            {'name': 'conv_3', 'n_features': int(64*scale), 'kernel_size': 3},
-            {'name': 'conv_4', 'n_features': int(64*scale), 'kernel_size': 3},
+            {'name': 'conv_0', 'n_features': int(16/scale), 'kernel_size': 3},
+            {'name': 'res_1', 'n_features': int(16/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_1', 'n_features': int(32/scale), 'kernel_size': 3},
+            {'name': 'res_2', 'n_features': int(32/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_2', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'res_3', 'n_features': int(64/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_3', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'conv_4', 'n_features': int(64/scale), 'kernel_size': 3},
             {'name': 'output', 'n_features': num_classes, 'kernel_size': 1}]
 
     def layer_op(self, images, is_training=True, layer_id=-1, **unused_kwargs):
