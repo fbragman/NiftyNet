@@ -24,7 +24,7 @@ def get_flags_to_look(task_type, model_type, recip_flag, reverse_flag):
                 task_1 = 'loss'
                 recip = [True, False]
             else:
-                task_1 = 'loss'
+                task_1 = 'accuracy'
                 recip = [False, False]
 
     if reverse_flag is True:
