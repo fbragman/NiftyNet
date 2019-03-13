@@ -76,7 +76,7 @@ class HighRes3DNetV2(BaseNet):
             acti_func=acti_func,
             name=name)
 
-        scale = self.layer_scale
+        scale = 2
 
         self.layers = [
             {'name': 'conv_0', 'n_features': int(16/scale), 'kernel_size': 3},
