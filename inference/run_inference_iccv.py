@@ -131,7 +131,7 @@ if __name__ == "__main__":
     config = configparser.RawConfigParser()
     config.read(args.config_path)
 
-    if args.local is True:
+    if str2boolean(args.local) is True:
         config = set_paths_to_local(config, args.method, args.model_dir)
 
     print(args.config_path)
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                                                      ckpoint_path,
                                                      args.tasks,
                                                      args.method,
-                                                     args.flag,
+                                                     str2boolean(args.flag),
                                                      str2boolean(args.reverseflag))
 
         print('Inference on {} iteration'.format(args.training_iter))
