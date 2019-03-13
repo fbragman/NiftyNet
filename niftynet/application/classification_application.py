@@ -334,7 +334,7 @@ class ClassificationApplication(BaseApplication):
             net_out = post_process_layer(net_out)
 
             outputs_collector.add_to_collection(
-                var=net_out, name='task_classification',
+                var=net_out, name='window',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
@@ -342,11 +342,9 @@ class ClassificationApplication(BaseApplication):
             self.initialise_aggregator()
 
     def interpret_output(self, batch_output):
-        if self.is_inference:
-            tasks = list(batch_output.keys())[0:-1]
+        if not self.is_training:
             return self.output_decoder.decode_batch(
-                {tasks[0]: batch_output[tasks[0]]},
-                batch_output['location'])
+                batch_output['window'], batch_output['location'])
         return True
 
     def initialise_evaluator(self, eval_param):
