@@ -79,12 +79,12 @@ class LearnedMTHighRes3DNet2(BaseNet):
         if use_annealing:
             # anneal every iter
             if not is_training:
-                tau_val = 0.05
+                tau_val = tf.Print(0.05, [0.05])
             else:
                 tau_val = gumbel_softmax_decay(current_iter, gs_anneal_r, max_temp=max_tau, min_temp=min_tau)
                 tau_val = tf.Print(tau_val, [tau_val])
         else:
-            tau_val = max_tau
+            tau_val = tf.Print(max_tau, [max_tau])
 
         ### first convolution layer
         params = self.layers[0]
