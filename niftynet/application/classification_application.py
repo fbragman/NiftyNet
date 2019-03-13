@@ -342,9 +342,11 @@ class ClassificationApplication(BaseApplication):
             self.initialise_aggregator()
 
     def interpret_output(self, batch_output):
-        if not self.is_training:
+        if self.is_inference:
+            tasks = list(batch_output.keys())[0:-1]
             return self.output_decoder.decode_batch(
-                batch_output['window'], batch_output['location'])
+                {tasks[0]: batch_output[tasks[0]]},
+                batch_output['location'])
         return True
 
     def initialise_evaluator(self, eval_param):
