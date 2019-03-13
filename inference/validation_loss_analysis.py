@@ -17,13 +17,6 @@ def get_flags_to_look(task_type, model_type, recip_flag, reverse_flag):
             task_1 = 'task_1_mae'
             task_2 = 'task_2_accuracy'
             recip = [True, False]
-
-        if reverse_flag is True:
-            task_1, task_2 = task_2, task_1
-            task_1 = task_1.replace('2', '1')
-            task_2 = task_2.replace('1', '2')
-            recip[0], recip[1] = recip[1], recip[0]
-
     else:
         if model_type == 'face':
             task_2 = None
@@ -33,6 +26,12 @@ def get_flags_to_look(task_type, model_type, recip_flag, reverse_flag):
             else:
                 task_1 = 'loss'
                 recip = [False, False]
+
+    if reverse_flag is True:
+        task_1, task_2 = task_2, task_1
+        task_1 = task_1.replace('2', '1')
+        task_2 = task_2.replace('1', '2')
+        recip[0], recip[1] = recip[1], recip[0]
 
     return task_1, task_2, recip
 
