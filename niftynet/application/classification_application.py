@@ -315,7 +315,7 @@ class ClassificationApplication(BaseApplication):
             # classification probabilities or argmax classification labels
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
             tf.logging.info(
@@ -334,7 +334,7 @@ class ClassificationApplication(BaseApplication):
             net_out = post_process_layer(net_out)
 
             outputs_collector.add_to_collection(
-                var=net_out, name='window',
+                var=net_out, name='task_classification',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
