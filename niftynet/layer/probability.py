@@ -2,6 +2,75 @@ import tensorflow as tf
 import numpy as np
 
 
+class CategoricalVariableInitByP(object):
+    """
+    Initialise Categorical probabilities for each kernel by (p1, ps, p2)
+    """
+
+    def __init__(self, probs, num_kernels):
+        """
+        Type of initialisation for kernel probabilities
+        :param probs: (p1, ps, p2)
+        :parma num_kernels number of kernels
+        """
+        self.probs = probs
+        self.num_kernel = num_kernels
+
+    def __call__(self):
+        """
+        Create and initialise variables
+        :return:
+        """
+        dirichlet_init_user = np.float32(np.asarray(self.probs))
+        dirichlet_init = dirichlet_init_user * np.ones((self.num_kernel, 3), dtype=np.float32)
+        return dirichlet_init
+
+
+class CategoricalVariableInitByD(object):
+    """
+    Randomly assign Categorical probabilities by sampling from a Dirichlet
+    """
+    def __init__(self, num_kernels):
+        """
+        Initialise class
+        :param num_kernels:
+        """
+        self.num_kernel = num_kernels
+
+    def __call__(self):
+        """
+        Get initial values
+        :return:
+        """
+        dirichlet = tf.distributions.Dirichlet
+        alpha = tf.constant([1., 1., 1.])
+        dist = dirichlet(alpha)
+        dirichlet_init = tf.stop_gradient(dist.sample([self.num_kernel]))
+        return dirichlet_init
+
+
+class CategoricalVariableInitByEdge(object):
+    """
+    Randomly assign Categorical probabilities by sampling from a Dirichlet
+    """
+    def __init__(self, probs, num_kernels):
+        """
+        Type of initialisation for kernel probabilities
+        :param probs: (p1, ps, p2)
+        :parma num_kernels number of kernels
+        """
+        self.probs = probs
+        self.num_kernel = num_kernels
+
+    def __call__(self):
+        """
+        Get initial values
+        :return:
+        """
+        hardCat = HardCategorical(self.probs, self.num_kernel)
+        return hardCat()
+
+
 class Dirichlet(object):
 
     def __init__(self, mean, precision, batch_size=1, num_samples=1):
