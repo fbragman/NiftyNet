@@ -421,6 +421,14 @@ class MultiTaskApplication(BaseApplication):
             # Multi-task loss
             weight_loss_1 = 1.
             weight_loss_2 = 1.
+            # if False:
+            #     # Get weight of probabilities
+            #     weight_prob_task_1 = tf.reduce_sum([tf.reduce_sum(p[:, 0]) for p in categoricals])
+            #     weight_prob_task_2 = tf.reduce_sum([tf.reduce_sum(p[:, 2]) for p in categoricals])
+            #     weight_prob_shared = tf.reduce_sum([tf.reduce_sum(p[:, 1]) for p in categoricals])
+            #     weight_loss_1 = 1/(weight_prob_task_1 + weight_prob_shared)
+            #     weight_loss_2 = 1/(weight_prob_task_2 + weight_prob_shared)
+
             data_loss = weight_loss_1 * data_loss_task_1 + weight_loss_2 * data_loss_task_2
 
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
