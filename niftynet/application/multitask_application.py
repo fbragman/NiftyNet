@@ -298,7 +298,8 @@ class MultiTaskApplication(BaseApplication):
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping,
                         'min_temp': self.multitask_param.min_temp,
-                        'concat_tensors': self.multitask_param.concat_tensors
+                        'concat_tensors': self.multitask_param.concat_tensors,
+                        'p_init_type': self.multitask_param.p_init_type
                         }
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
@@ -455,6 +456,7 @@ class MultiTaskApplication(BaseApplication):
                 loss, colocate_gradients_with_ops=True)
             # collecting gradients variables
             gradients_collector.add_to_collection([grads])
+            #gradients_collector.add_to_collection([grads2])
 
             # collecting output variables
             self.output_collector_truck(outputs_collector,
@@ -495,7 +497,8 @@ class MultiTaskApplication(BaseApplication):
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping,
                         'min_temp': self.multitask_param.min_temp,
-                        'concat_tensors': self.multitask_param.concat_tensors
+                        'concat_tensors': self.multitask_param.concat_tensors,
+                        'p_init_type': self.multitask_param.p_init_type
                         }
 
             net_out, categoricals = self.net(image, **net_args)

@@ -11,6 +11,7 @@ from niftynet.layer.bn import BNLayer
 from niftynet.layer.gn import GNLayer
 from niftynet.utilities.util_common import look_up_operations
 from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical, Categorical
+from niftynet.layer.probability import CategoricalVariableInitByP, CategoricalVariableInitByD, CategoricalVariableInitByVertex
 from niftynet.layer import group_ops
 
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
@@ -1055,7 +1056,13 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
         self.regularizers = {'w': w_regularizer, 'b': b_regularizer}
 
-    def layer_op(self, input_tensor, tau, is_training=None, keep_prob=None, p_init=False, concat_tensors=True):
+    def layer_op(self, input_tensor,
+                 tau,
+                 is_training=None,
+                 keep_prob=None,
+                 p_init=False,
+                 concat_tensors=True,
+                 p_init_type=None):
 
         if self.with_bn:
             if is_training is None:
@@ -1106,14 +1113,26 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             # Number of kernels
             N = self.n_output_chns
 
-            if self.p_init:
-                dirichlet = tf.distributions.Dirichlet
-                alpha = tf.constant([1., 1., 1.])
-                dist = dirichlet(alpha)
-                dirichlet_init = tf.stop_gradient(dist.sample([N]))
+            if self.init_cat is None:
+                cat_probs_init = (1 / 3, 1 / 3, 1 / 3)
             else:
-                dirichlet_init_user = np.float32(np.asarray(self.init_cat))
-                dirichlet_init = dirichlet_init_user * np.ones((N, 3), dtype=np.float32)
+                cat_probs_init = self.init_cat
+
+            # Initialisation of Categorical probabilities
+            if p_init_type is None or p_init_type == 'cat_probability':
+                # Initialise using variable in self.init_cat or default to (1/3, 1/3, 1/3)
+                P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
+            elif p_init_type == 'random':
+                # Initialise from Dirichlet distribution (would be the same if p_random_init=True but now deprecated)
+                P_initialiser = CategoricalVariableInitByD(N)
+            elif p_init_type == 'vertex_allocation':
+                # Allocate p to vertex [1, 0, 0], [0, 1, 0], [0, 0, 1] based on proportions in self.init_cat
+                P_initialiser = CategoricalVariableInitByVertex(cat_probs_init, N)
+            else:
+                P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
+
+            # Sample initialised variables to pass to Categorical sampling
+            dirichlet_init = P_initialiser()
 
             # Check if using constant grouping or learning
             if self.learn_cat:
@@ -1139,7 +1158,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         if self.constant_grouping:
             # create constant grouping / no sampling at each iteration
             # mixture defined by init_cat
-
+            dirichlet_init_user = np.float32(np.asarray(cat_probs_init))
             constant_mask = HardCategorical(dirichlet_init_user, N)
             cat_mask = constant_mask()
             cat_mask_unstacked = tf.unstack(cat_mask, axis=1)

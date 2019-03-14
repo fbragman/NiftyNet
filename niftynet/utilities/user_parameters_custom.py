@@ -354,8 +354,7 @@ def __add_multitask_args(parser):
         metavar='',
         type=str,
         help="[Method option] sets structural options for multi-task",
-        default='mixed'
-    )
+        default='mixed')
 
     # Gumbel-Softmax annealing parameters
     parser.add_argument(
@@ -371,52 +370,45 @@ def __add_multitask_args(parser):
         help="[Method option] Initial temperature or constant temperature for"
              "Gumbel-Softmax approximation",
         type=float,
-        default=0.1
-    )
+        default=0.1)
 
     parser.add_argument(
         "--layer_scale",
         help="[Method option] parameter to change number of features in network",
         type=float,
-        default=1
-    )
+        default=1)
 
     parser.add_argument(
         "--entropy_decay",
         help="[Method option] Entropy decay parameter",
         type=float,
-        default=1
-    )
+        default=1)
 
     parser.add_argument(
         "--gs_anneal_r",
         help="[Method option] GumbelSoftmax annealing hyper-parameter r",
         type=float,
-        default=0.0001
-    )
+        default=0.0001)
 
     parser.add_argument(
         "--min_temp",
         help="[Method option] Min temperature in anneal",
         type=float,
-        default=0.05
-    )
+        default=0.05)
 
     parser.add_argument(
         "--learn_categorical",
         metavar='',
         help="[Method option] Learn or use fixed categorical",
         type=str2boolean,
-        default=True
-    )
+        default=True)
 
     parser.add_argument(
         "--batch_sampling",
         metavar='',
         help="[Method option] Sample GS or Categorical per subject in batch",
         type=str2boolean,
-        default=False
-    )
+        default=False)
 
     parser.add_argument(
         "--init_categorical",
@@ -430,8 +422,14 @@ def __add_multitask_args(parser):
         metavar='',
         help="[Method option] Random initialisation of categorical probabilities",
         type=str2boolean,
-        default=False
-    )
+        default=False)
+
+    parser.add_argument(
+        "--p_init_type",
+        metavar='',
+        help="[Method option] Type of initialisation for Categorical distributions",
+        type=str,
+        default='cat_probability')
 
     parser.add_argument(
         "--concat_tensors",
