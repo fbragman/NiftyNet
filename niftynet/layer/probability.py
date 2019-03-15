@@ -49,7 +49,7 @@ class CategoricalVariableInitByD(object):
         return dirichlet_init
 
 
-class CategoricalVariableInitByEdge(object):
+class CategoricalVariableInitByVertex(object):
     """
     Randomly assign Categorical probabilities by sampling from a Dirichlet
     """
