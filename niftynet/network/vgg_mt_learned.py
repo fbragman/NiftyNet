@@ -99,6 +99,9 @@ class LearnedMTVGG16Net(BaseNet):
         # concatenation or addition
         concat_tensors = unused_kwargs['concat_tensors']
 
+        # type of intialisation
+        p_init_type = unused_kwargs['p_init_type']
+
         # main network graph
         with tf.variable_scope('vgg_body'):
             grouped_flow, layer_instances, cats = \
@@ -106,7 +109,8 @@ class LearnedMTVGG16Net(BaseNet):
                                                group_connection, use_annealing,
                                                gs_anneal_r, max_tau,
                                                use_hardcat, learn_cat,
-                                               init_cat, constant_grouping, min_tau, concat_tensors)
+                                               init_cat, constant_grouping,
+                                               min_tau, concat_tensors, p_init_type)
 
         if group_connection == 'separate':
             grouped_flow[0] = grouped_flow[0] + grouped_flow[1]
@@ -154,7 +158,8 @@ class LearnedMTVGG16Net(BaseNet):
                                   group_connection=None, use_annealing=False, gs_anneal_r=1e-5,
                                   tau_ini=1, use_hardcat=True,
                                   learn_cat=True, init_cat=(1/3, 1/3, 1/3),
-                                  constant_grouping=False, min_temp=0.05, concat_tensors=True):
+                                  constant_grouping=False,
+                                  min_temp=0.05, concat_tensors=True, p_init_type='cat_probability'):
 
         layer_instances = []
         mask_instances = []
@@ -198,7 +203,9 @@ class LearnedMTVGG16Net(BaseNet):
                     name=layer['name'])
 
                 grouped_flow, learned_mask, d_p = conv_layer(images, tau, is_training,
-                                                             concat_tensors=concat_tensors)
+                                                             concat_tensors=concat_tensors,
+                                                             p_init_type=p_init_type)
+
                 layer_instances.append((conv_layer, grouped_flow))
                 mask_instances.append((d_p, learned_mask))
 
@@ -246,7 +253,9 @@ class LearnedMTVGG16Net(BaseNet):
                         w_regularizer=self.regularizers['w'],
                         name=layer['name'] + '_conv_{}'.format(it))
                     grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau, is_training,
-                                                                 concat_tensors=concat_tensors)
+                                                                 concat_tensors=concat_tensors,
+                                                                 p_init_type=p_init_type)
+
                     layer_instances.append((conv_layer, grouped_flow))
                     mask_instances.append((d_p, learned_mask))
 

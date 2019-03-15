@@ -76,6 +76,12 @@ class LearnedMTHighRes3DNet2(BaseNet):
         max_tau = unused_kwargs['initial_tau']
         min_tau = unused_kwargs['min_temp']
         gs_anneal_r = unused_kwargs['gs_anneal_r']
+
+        # concatenation or addition
+        concat_tensors = unused_kwargs['concat_tensors']
+        # type of intialisation
+        p_init_type = unused_kwargs['p_init_type']
+
         if use_annealing:
             # anneal every iter
             if not is_training:
@@ -103,7 +109,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training,
+                                                     concat_tensors=concat_tensors,
+                                                     p_init_type=p_init_type)
+
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -160,7 +169,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
+                                                     concat_tensors=concat_tensors,
+                                                     p_init_type=p_init_type)
+
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -205,7 +217,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
+                                                     concat_tensors=concat_tensors,
+                                                     p_init_type=p_init_type)
+
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -250,7 +265,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
+                                                     concat_tensors=concat_tensors,
+                                                     p_init_type=p_init_type)
+
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
@@ -270,7 +288,10 @@ class LearnedMTHighRes3DNet2(BaseNet):
             w_initializer=self.initializers['w'],
             w_regularizer=self.regularizers['w'],
             name=params['name'])
-        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+        grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training,
+                                                     concat_tensors=concat_tensors,
+                                                     p_init_type=p_init_type)
+
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
 
