@@ -397,6 +397,12 @@ def __add_multitask_args(parser):
         default=0.05)
 
     parser.add_argument(
+        "--inference_iter",
+        help="[Method option] Min temperature in anneal",
+        type=float,
+        default=100000)
+
+    parser.add_argument(
         "--learn_categorical",
         metavar='',
         help="[Method option] Learn or use fixed categorical",

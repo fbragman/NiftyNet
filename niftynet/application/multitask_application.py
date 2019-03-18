@@ -298,6 +298,7 @@ class MultiTaskApplication(BaseApplication):
                         'use_hardcat': self.multitask_param.use_hardcat,
                         'constant_grouping': self.multitask_param.constant_grouping,
                         'min_temp': self.multitask_param.min_temp,
+                        'inference_iter': self.multitask_param.inference_iter,
                         'concat_tensors': self.multitask_param.concat_tensors,
                         'p_init_type': self.multitask_param.p_init_type
                         }
@@ -480,7 +481,7 @@ class MultiTaskApplication(BaseApplication):
             image = tf.cast(data_dict['image'], tf.float32)
 
             # Current_iteration: any value since we set tau = 0.05 if trianing to make it close to one-hot vector
-            current_iter = tf.constant(200000, dtype=tf.float32)
+            current_iter = tf.constant(self.multitask_param.inference_iter, dtype=tf.float32)
 
             # Optional arguments
             net_args = {'is_training': True,
