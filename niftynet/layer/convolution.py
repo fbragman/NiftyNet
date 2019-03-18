@@ -1118,6 +1118,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             else:
                 cat_probs_init = self.init_cat
 
+            cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
+
             # Initialisation of Categorical probabilities
             if p_init_type is None or p_init_type == 'cat_probability':
                 # Initialise using variable in self.init_cat or default to (1/3, 1/3, 1/3)
@@ -1142,7 +1144,11 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                                               trainable=True)
 
                 # For variables to be in range [0, 1]
-                dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+                #dirichlet_p = tf.nn.softmax(dirichlet_p, axis=1)
+
+                dirichlet_p = tf.nn.softplus(dirichlet_p)
+                dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
+
 
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
@@ -1158,7 +1164,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
         if self.constant_grouping:
             # create constant grouping / no sampling at each iteration
             # mixture defined by init_cat
-            dirichlet_init_user = np.float32(np.asarray(cat_probs_init))
+            dirichlet_init_user = np.float32(np.asarray(self.init_cat))
             constant_mask = HardCategorical(dirichlet_init_user, N)
             cat_mask = constant_mask()
             cat_mask_unstacked = tf.unstack(cat_mask, axis=1)
