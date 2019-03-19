@@ -1120,7 +1120,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
             # Initialisation of Categorical probabilities
             if p_init_type is None or p_init_type == 'cat_probability':
-                # Initialise using variable in self.init_cat or default to (1/3, 1/3, 1/3)
+                # Transform initial probabilities with inverse softplus
                 cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
                 P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
                 dirichlet_init = P_initialiser()
@@ -1128,6 +1128,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 # Initialise from Dirichlet distribution (would be the same if p_random_init=True but now deprecated)
                 P_initialiser = CategoricalVariableInitByD(N)
                 dirichlet_init = P_initialiser()
+                # Output non-transformed probabilities so need to transform them
+                dirichlet_init = np.float32(np.asarray(np.log(np.exp(dirichlet_init) - 1.0)))
             elif p_init_type == 'vertex_allocation':
                 # Allocate p to vertex [1, 0, 0], [0, 1, 0], [0, 0, 1] based on proportions in self.init_cat
                 # Do not use inverse soft plus first as CategoricalVariableInitByVertex expects proportions, not probs!
@@ -1136,6 +1138,7 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 # These are now probabilities so can use inverse transform
                 dirichlet_init = np.float32(np.asarray(np.log(np.exp(dirichlet_init) - 1.0)))
             else:
+                # Transform initial probabilities with inverse softplus
                 cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
                 P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
                 dirichlet_init = P_initialiser()
