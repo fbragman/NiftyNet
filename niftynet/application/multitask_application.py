@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
 
-import matplotlib
-import matplotlib.cm
-
-import numpy as np
-
 from niftynet.application.base_application import BaseApplication
 from niftynet.engine.application_factory import \
     ApplicationNetFactory, InitializerFactory, OptimiserFactory
@@ -35,7 +30,6 @@ from niftynet.layer.post_processing import PostProcessingLayer
 from niftynet.layer.rand_flip import RandomFlipLayer
 from niftynet.layer.rand_rotation import RandomRotationLayer
 from niftynet.layer.rand_spatial_scaling import RandomSpatialScalingLayer
-from niftynet.evaluation.regression_evaluator import RegressionEvaluator
 from niftynet.layer.rand_elastic_deform import RandomElasticDeformationLayer
 
 SUPPORTED_INPUT = set(['image', 'output_1', 'output_2', 'weight', 'sampler'])
@@ -281,7 +275,6 @@ class MultiTaskApplication(BaseApplication):
 
             net_out, categoricals = self.net(image, **net_args)
 
-            # TODO implement ability for arbitrary amount of tasks..
             net_out_task_1 = net_out[0]
             net_out_task_2 = net_out[1]
 
@@ -338,7 +331,6 @@ class MultiTaskApplication(BaseApplication):
                     weight_map=weight_map)
 
             # Vanilla multi-task loss
-            # TODO implement ability to do uncertainty based mt learning from other branch
             data_loss = data_loss_task_1 + data_loss_task_2
             reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
@@ -372,20 +364,32 @@ class MultiTaskApplication(BaseApplication):
                 average_over_devices=False, collection=NETWORK_OUTPUT)
 
         elif self.is_inference:
-            # TODO implement multi-task inference for validation
+
             data_dict = switch_sampler(for_training=False)
             image = tf.cast(data_dict['image'], tf.float32)
-            net_args = {'is_training': self.is_training,
+            net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob}
             net_out = self.net(image, **net_args)
-            net_out = PostProcessingLayer('IDENTITY')(net_out)
+
+            # Output for task 1
+            net_out_task_1 = PostProcessingLayer('IDENTITY')(net_out[0])
+
+            # Output for task 2
+            num_classes = self.multitask_param.num_classes[1]
+            post_process_layer = PostProcessingLayer(
+                'ARGMAX', num_classes=num_classes)
+            net_out_task_2 = post_process_layer(net_out[1])
 
             outputs_collector.add_to_collection(
-                var=net_out, name='window',
+                var=net_out_task_1, name='task_regression',
+                average_over_devices=False, collection=NETWORK_OUTPUT)
+            outputs_collector.add_to_collection(
+                var=net_out_task_2, name='task_segmentation',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
+
             self.initialise_aggregator()
 
     def output_collector_categoricals(self, outputs_collector, cats):
@@ -444,27 +448,34 @@ class MultiTaskApplication(BaseApplication):
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
 
-        #if self.multitask_param.task_1_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[0],
-        #                                        self.multitask_param.num_classes[0],
-        #                                        data_dict['output_1'], 'task_1')
+        # Add MAE as well as RMSE
+        mae_loss = RegLossFunction(loss_type='MAE')
+        data_loss_task_1 = mae_loss(
+            prediction=net_out[0],
+            ground_truth=data_dict['output_1'])
 
-        #if self.multitask_param.task_2_type == 'classification':
-        #    self.add_classification_statistics_(outputs_collector, net_out[1],
-        #                                        self.multitask_param.num_classes[1],
-        #                                        data_dict['output_2'], 'task_2')
+        outputs_collector.add_to_collection(
+            var=data_loss_task_1, name='task_1_mae',
+            average_over_devices=False, collection=CONSOLE)
+
+        outputs_collector.add_to_collection(
+            var=data_loss_task_1, name='task_1_mae',
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
+
+        # Also add classification accuracy
+        self.add_classification_statistics_(outputs_collector, net_out[1],
+                                                self.multitask_param.num_classes[1],
+                                                data_dict['output_2'], 'task_2')
 
     def interpret_output(self, batch_output):
         if self.is_inference:
+            tasks = list(batch_output.keys())[0:-1]
             return self.output_decoder.decode_batch(
-                batch_output['window'], batch_output['location'])
+                {tasks[0]: batch_output[tasks[0]],
+                 tasks[1]: batch_output[tasks[1]]},
+                batch_output['location'])
         return True
-
-    def initialise_evaluator(self, eval_param):
-        self.eval_param = eval_param
-        self.evaluator = RegressionEvaluator(self.readers[0],
-                                             self.regression_param,
-                                             eval_param)
 
     def add_inferred_output(self, data_param, task_param):
         return self.add_inferred_output_like(data_param, task_param, 'output')
@@ -489,75 +500,35 @@ class MultiTaskApplication(BaseApplication):
          """
         prediction = tf.reshape(tf.argmax(net_out, -1), [-1])
 
-        if num_classes == 2:
-            acc, _ = tf.metrics.accuracy(labels=labels, predictions=prediction)
-            pre, _ = tf.metrics.precision(labels=labels, predictions=prediction)
-            rec, _ = tf.metrics.recall(labels=labels, predictions=prediction)
+        conf_mat = tf.confusion_matrix(labels=labels, predictions=prediction, num_classes=num_classes)
+        conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
+        TP = conf_mat[1][1]
+        FP = conf_mat[0][1]
+        FN = conf_mat[1][0]
+        accuracy = tf.trace(conf_mat)
+        precision = TP / (TP + FP)
+        recall = TP / (TP + FN)
 
-            outputs_collector.add_to_collection(
-                var=acc, name=opt_string + '_accuracy',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
-            outputs_collector.add_to_collection(
-                var=pre, name=opt_string + '_precision',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
-            outputs_collector.add_to_collection(
-                var=rec, name=opt_string + '_recall',
-                average_over_devices=True, summary_type='scalar',
-                collection=TF_SUMMARIES
-            )
-        else:
-            conf_mat = tf.confusion_matrix(labels=labels, predictions=prediction, num_classes=num_classes)
-            conf_mat = tf.to_float(conf_mat) / float(self.net_param.batch_size)
-            outputs_collector.add_to_collection(
-                var=conf_mat[tf.newaxis, :, :, tf.newaxis],
-                name='confusion_matrix',
-                average_over_devices=True, summary_type='image',
-                collection=TF_SUMMARIES)
+        outputs_collector.add_to_collection(
+            var=accuracy,
+            name='task_2_accuracy',
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
 
-    def colorize(self, value, vmin=None, vmax=None, cmap=None):
-        """
-        A utility function for TensorFlow that maps a grayscale image to a matplotlib
-        colormap for use with TensorBoard image summaries.
-        By default it will normalize the input value to the range 0..1 before mapping
-        to a grayscale colormap.
-        Arguments:
-          - value: 2D Tensor of shape [height, width] or 3D Tensor of shape
-            [height, width, 1].
-          - vmin: the minimum value of the range used for normalization.
-            (Default: value minimum)
-          - vmax: the maximum value of the range used for normalization.
-            (Default: value maximum)
-          - cmap: a valid cmap named for use with matplotlib's `get_cmap`.
-            (Default: 'gray')
-        Example usage:
-        ```
-        output = tf.random_uniform(shape=[256, 256, 1])
-        output_color = colorize(output, vmin=0.0, vmax=1.0, cmap='viridis')
-        tf.summary.image('output', output_color)
-        ```
+        outputs_collector.add_to_collection(
+            var=accuracy,
+            name='task_2_accuracy',
+            average_over_devices=False,
+            collection=CONSOLE)
 
-        Returns a 3D tensor of shape [height, width, 3].
-        """
+        outputs_collector.add_to_collection(
+            var=precision,
+            name='task_2_precision',
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
 
-        # normalize
-        vmin = tf.reduce_min(value) if vmin is None else vmin
-        vmax = tf.reduce_max(value) if vmax is None else vmax
-        value = (value - vmin) / (vmax - vmin)  # vmin..vmax
-
-        # squeeze last dim if it exists
-        value = tf.squeeze(value)
-
-        # quantize
-        indices = tf.to_int32(tf.round(value * 255))
-
-        # gather
-        cm = matplotlib.cm.get_cmap(cmap if cmap is not None else 'gray')
-        colors = cm(np.arange(256))[:, :3]
-        colors = tf.constant(colors, dtype=tf.float32)
-        value = tf.gather(colors, indices)
-
-        return value
+        outputs_collector.add_to_collection(
+            var=recall,
+            name='task_2_recall',
+            average_over_devices=True, summary_type='scalar',
+            collection=TF_SUMMARIES)
