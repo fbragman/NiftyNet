@@ -83,7 +83,7 @@ class CrossStichVGG16Net(BaseNet):
                  w_regularizer=None,
                  b_initializer=None,
                  b_regularizer=None,
-                 acti_func='relu',
+                 acti_func='prelu',
                  name='MT1_VGG16Net'):
 
         super(CrossStichVGG16Net, self).__init__(
@@ -96,27 +96,27 @@ class CrossStichVGG16Net(BaseNet):
             name=name)
 
         self.task1_body_layers = [
-            {'name': 'task_1_layer_1', 'n_features': 32 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_1_layer_1', 'n_features': 32, 'kernel_size': 3, 'repeat': 1},
             {'name': 'task_1_maxpool_1'},
-            {'name': 'task_1_layer_2', 'n_features': 64 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_1_layer_2', 'n_features': 64, 'kernel_size': 3, 'repeat': 1},
             {'name': 'task_1_maxpool_2'},
-            {'name': 'task_1_layer_3', 'n_features': 128 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_layer_3', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_1_maxpool_3'},
-            {'name': 'task_1_layer_4', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_layer_4', 'n_features': 256, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_1_maxpool_4'},
-            {'name': 'task_1_layer_5', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_1_layer_5', 'n_features': 256, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_1_gap'},
         ]
         self.task2_body_layers = [
-            {'name': 'task_2_layer_1', 'n_features': 32 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_2_layer_1', 'n_features': 32, 'kernel_size': 3, 'repeat': 1},
             {'name': 'task_2_maxpool_1'},
-            {'name': 'task_2_layer_2', 'n_features': 64 * 2, 'kernel_size': 3, 'repeat': 2},
+            {'name': 'task_2_layer_2', 'n_features': 64, 'kernel_size': 3, 'repeat': 1},
             {'name': 'task_2_maxpool_2'},
-            {'name': 'task_2_layer_3', 'n_features': 128 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_layer_3', 'n_features': 128, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_2_maxpool_3'},
-            {'name': 'task_2_layer_4', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_layer_4', 'n_features': 256, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_2_maxpool_4'},
-            {'name': 'task_2_layer_5', 'n_features': 256 * 2, 'kernel_size': 3, 'repeat': 3},
+            {'name': 'task_2_layer_5', 'n_features': 256, 'kernel_size': 3, 'repeat': 2},
             {'name': 'task_2_gap'},
         ]
         self.task1_layers = {'name': 'task_1_out', 'n_features': self.num_classes[0]}
@@ -141,6 +141,7 @@ class CrossStichVGG16Net(BaseNet):
         with tf.variable_scope('task_1_fc'):
             fc_layer = FullyConnectedLayer(
                 n_output_chns=task1_layer['n_features'],
+                with_bn=False,
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
@@ -152,6 +153,7 @@ class CrossStichVGG16Net(BaseNet):
         with tf.variable_scope('task_2_fc'):
             fc_layer = FullyConnectedLayer(
                 n_output_chns=task2_layer['n_features'],
+                with_bn=False,
                 w_initializer=self.initializers['w'],
                 w_regularizer=self.regularizers['w'],
             )
