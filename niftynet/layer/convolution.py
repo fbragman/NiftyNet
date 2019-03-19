@@ -1118,23 +1118,27 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
             else:
                 cat_probs_init = self.init_cat
 
-            cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
-
             # Initialisation of Categorical probabilities
             if p_init_type is None or p_init_type == 'cat_probability':
                 # Initialise using variable in self.init_cat or default to (1/3, 1/3, 1/3)
+                cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
                 P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
+                dirichlet_init = P_initialiser()
             elif p_init_type == 'random':
                 # Initialise from Dirichlet distribution (would be the same if p_random_init=True but now deprecated)
                 P_initialiser = CategoricalVariableInitByD(N)
+                dirichlet_init = P_initialiser()
             elif p_init_type == 'vertex_allocation':
                 # Allocate p to vertex [1, 0, 0], [0, 1, 0], [0, 0, 1] based on proportions in self.init_cat
+                # Do not use inverse soft plus first as CategoricalVariableInitByVertex expects proportions, not probs!
                 P_initialiser = CategoricalVariableInitByVertex(cat_probs_init, N)
+                dirichlet_init = P_initialiser()
+                # These are now probabilities so can use inverse transform
+                dirichlet_init = np.float32(np.asarray(np.log(np.exp(dirichlet_init) - 1.0)))
             else:
+                cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
                 P_initialiser = CategoricalVariableInitByP(cat_probs_init, N)
-
-            # Sample initialised variables to pass to Categorical sampling
-            dirichlet_init = P_initialiser()
+                dirichlet_init = P_initialiser()
 
             # Check if using constant grouping or learning
             if self.learn_cat:

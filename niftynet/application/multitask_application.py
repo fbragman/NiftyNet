@@ -367,6 +367,9 @@ class MultiTaskApplication(BaseApplication):
                     collection=TF_SUMMARIES)
                 tf.summary.histogram('task_1/error', error_image)
 
+                # Output histogram of actual prediction!
+                tf.summary.histogram('task_1/prediction_histogram', crop_layer(net_out_task_1))
+
             if len(net_out_task_2.shape) < 3:
                 data_loss_task_2 = loss_func_task_2(
                     prediction=net_out_task_2,
