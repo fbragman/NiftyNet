@@ -369,16 +369,19 @@ class MultiTaskApplication(BaseApplication):
             image = tf.cast(data_dict['image'], tf.float32)
             net_args = {'is_training': True,
                         'keep_prob': self.net_param.keep_prob}
-            net_out = self.net(image, **net_args)
+
+            net_out, _ = self.net(image, **net_args)
+            net_out_task_1 = net_out[0]
+            net_out_task_2 = net_out[1]
 
             # Output for task 1
-            net_out_task_1 = PostProcessingLayer('IDENTITY')(net_out[0])
+            net_out_task_1 = PostProcessingLayer('IDENTITY')(net_out_task_1)
 
             # Output for task 2
             num_classes = self.multitask_param.num_classes[1]
             post_process_layer = PostProcessingLayer(
                 'ARGMAX', num_classes=num_classes)
-            net_out_task_2 = post_process_layer(net_out[1])
+            net_out_task_2 = post_process_layer(net_out_task_2)
 
             outputs_collector.add_to_collection(
                 var=net_out_task_1, name='task_regression',
@@ -532,3 +535,33 @@ class MultiTaskApplication(BaseApplication):
             name='task_2_recall',
             average_over_devices=True, summary_type='scalar',
             collection=TF_SUMMARIES)
+
+
+    def set_iteration_update(self, iteration_message):
+        """
+        At each iteration ``application_driver`` calls::
+
+            output = tf.session.run(variables_to_eval, feed_dict=data_dict)
+
+        to evaluate TF graph elements, where
+        ``variables_to_eval`` and ``data_dict`` are retrieved from
+        ``iteration_message.ops_to_run`` and
+        ``iteration_message.data_feed_dict``
+         (In addition to the variables collected by self.output_collector).
+
+        The output of `tf.session.run(...)` will be stored at
+        ``iteration_message.current_iter_output``, and can be accessed
+        from ``engine.handler_network_output.OutputInterpreter``.
+
+        override this function for more complex operations
+        (such as learning rate decay) according to
+        ``iteration_message.current_iter``.
+        """
+        if iteration_message.is_training:
+            iteration_message.data_feed_dict[self.is_validation] = False
+        elif iteration_message.is_validation:
+            iteration_message.data_feed_dict[self.is_validation] = True
+
+        if self.is_training:
+            iteration_message.data_feed_dict[iteration_message.ops_to_run['niftynetout']['current_iter']] = \
+                iteration_message.current_iter
