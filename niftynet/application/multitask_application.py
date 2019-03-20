@@ -387,7 +387,7 @@ class MultiTaskApplication(BaseApplication):
                 var=net_out_task_1, name='task_regression',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
-                var=net_out_task_2, name='task_segmentation',
+                var=net_out_task_2, name='task_classification',
                 average_over_devices=False, collection=NETWORK_OUTPUT)
             outputs_collector.add_to_collection(
                 var=data_dict['image_location'], name='location',
