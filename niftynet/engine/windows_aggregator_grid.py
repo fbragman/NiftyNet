@@ -38,25 +38,38 @@ class GridSamplesAggregator(ImageWindowsAggregator):
         self.postfix = postfix
 
     def decode_batch(self, window, location):
+
         n_samples = location.shape[0]
-        window, location = self.crop_batch(window, location, self.window_border)
+        location_init = np.copy(location)
+        test = None
+        for w in window:
+            test = np.ones_like(window[w])
+            window[w], _, _ = self.crop_batch(window[w], location_init, self.window_border)
+            location_init = np.copy(location)
+        _, location, _ = self.crop_batch(test, location_init, self.window_border)
 
         for batch_id in range(n_samples):
-            image_id, x_start, y_start, z_start, x_end, y_end, z_end = \
-                location[batch_id, :]
+            try:
+                image_id, x_start, y_start, z_start, x_end, y_end, z_end = \
+                    location[batch_id, :]
+            except:
+                a = 2
             if image_id != self.image_id:
                 # image name changed:
                 #    save current image and create an empty image
                 self._save_current_image()
                 if self._is_stopping_signal(location[batch_id]):
                     return False
-                self.image_out = self._initialise_empty_image(
-                    image_id=image_id,
-                    n_channels=window.shape[-1],
-                    dtype=window.dtype)
-            self.image_out[x_start:x_end,
-                           y_start:y_end,
-                           z_start:z_end, ...] = window[batch_id, ...]
+                self.image_out = {}
+                for w in window:
+                    self.image_out[w] = self._initialise_empty_image(
+                        image_id=image_id,
+                        n_channels=window[w].shape[-1],
+                        dtype=window[w].dtype)
+            for w in window:
+                self.image_out[w][x_start:x_end,
+                                  y_start:y_end,
+                                  z_start:z_end, ...] = window[w][batch_id, ...]
         return True
 
     def _initialise_empty_image(self, image_id, n_channels, dtype=np.float):
@@ -80,12 +93,14 @@ class GridSamplesAggregator(ImageWindowsAggregator):
             if isinstance(layer, DiscreteLabelNormalisationLayer):
                 self.image_out, _ = layer.inverse_op(self.image_out)
         subject_name = self.reader.get_subject_id(self.image_id)
-        filename = "{}{}.nii.gz".format(subject_name, self.postfix)
-        source_image_obj = self.input_image[self.name]
-        misc_io.save_data_array(self.output_path,
-                                filename,
-                                self.image_out,
-                                source_image_obj,
-                                self.output_interp_order)
-        self.log_inferred(subject_name, filename)
+
+        for i in self.image_out:
+            filename = "{}_{}_niftynet_out.nii.gz".format(i, subject_name)
+            source_image_obj = self.input_image[self.name]
+            misc_io.save_data_array(self.output_path,
+                                    filename,
+                                    self.image_out[i],
+                                    source_image_obj,
+                                    self.output_interp_order)
+            self.log_inferred(subject_name, filename)
         return

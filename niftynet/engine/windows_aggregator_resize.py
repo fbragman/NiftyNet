@@ -44,28 +44,38 @@ class ResizeSamplesAggregator(ImageWindowsAggregator):
         generated outputs).
         """
         n_samples = location.shape[0]
-        window, location = self.crop_batch(window, location, self.window_border)
+        voxel_flag = {}
+        for w in window:
+            window[w], _, tmp_flag = self.crop_batch(window[w], location, self.window_border)
+            voxel_flag[w] = tmp_flag
+
         for batch_id in range(n_samples):
             if self._is_stopping_signal(location[batch_id]):
                 return False
             self.image_id = location[batch_id, 0]
-            resize_to_shape = self._initialise_image_shape(
-                image_id=self.image_id,
-                n_channels=window.shape[-1])
-            self._save_current_image(window[batch_id, ...], resize_to_shape)
+            for w in window:
+                resize_to_shape = self._initialise_image_shape(
+                    image_id=self.image_id,
+                    n_channels=window[w].shape[-1],
+                    voxel_flag=voxel_flag[w])
+                self._save_current_image(window[w][batch_id, ...], resize_to_shape, voxel_flag[w], w)
         return True
 
-    def _initialise_image_shape(self, image_id, n_channels):
+    def _initialise_image_shape(self, image_id, n_channels, voxel_flag=None):
         self.image_id = image_id
         spatial_shape = self.input_image[self.name].shape[:3]
-        output_image_shape = spatial_shape + (1, n_channels,)
+        if voxel_flag:
+            output_image_shape = (1, 1)
+        else:
+            output_image_shape = spatial_shape + (1, n_channels,)
+
         empty_image = np.zeros(output_image_shape, dtype=np.bool)
         for layer in self.reader.preprocessors:
             if isinstance(layer, PadLayer):
                 empty_image, _ = layer(empty_image)
         return empty_image.shape
 
-    def _save_current_image(self, image_out, resize_to):
+    def _save_current_image(self, image_out, resize_to, voxel_flag=None, task_name=None):
         if self.input_image is None:
             return
         window_shape = resize_to
@@ -82,9 +92,11 @@ class ResizeSamplesAggregator(ImageWindowsAggregator):
             [float(p) / float(d) for p, d in zip(window_shape, image_shape)]
         image_shape = list(image_shape[:3]) + [1, image_shape[-1]]
         image_out = np.reshape(image_out, image_shape)
-        image_out = zoom_3d(image=image_out,
-                            ratio=zoom_ratio,
-                            interp_order=self.output_interp_order)
+
+        if voxel_flag is None:
+            image_out = zoom_3d(image=image_out,
+                                ratio=zoom_ratio,
+                                interp_order=self.output_interp_order)
 
         for layer in reversed(self.reader.preprocessors):
             if isinstance(layer, PadLayer):
@@ -92,7 +104,10 @@ class ResizeSamplesAggregator(ImageWindowsAggregator):
             if isinstance(layer, DiscreteLabelNormalisationLayer):
                 image_out, _ = layer.inverse_op(image_out)
         subject_name = self.reader.get_subject_id(self.image_id)
-        filename = "{}{}.nii.gz".format(subject_name, self.postfix)
+        if task_name is not None:
+            filename = "{}{}.nii.gz".format(subject_name, '_' + task_name)
+        else:
+            filename = "{}{}.nii.gz".format(subject_name, self.postfix)
         source_image_obj = self.input_image[self.name]
         misc_io.save_data_array(self.output_path,
                                 filename,
