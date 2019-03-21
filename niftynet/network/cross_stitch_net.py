@@ -7,6 +7,9 @@ from niftynet.layer.convolution import ConvolutionalLayer
 from niftynet.layer.downsample import DownSampleLayer
 from niftynet.network.base_net import BaseNet
 from niftynet.layer.fully_connected import FullyConnectedLayer
+from niftynet.layer import layer_util
+from niftynet.layer.dilatedcontext import DilatedTensor
+from niftynet.network.highres3dnet_iccv import HighResBlock
 
 import tensorflow as tf
 
@@ -306,3 +309,360 @@ class CrossStichVGG16Net(BaseNet):
     @staticmethod
     def _get_layer_type(layer_name):
         return layer_name.split('_')[2]
+
+
+class CrossStichHighRes3DNetV2(BaseNet):
+    """HighRes3DNetV2 with cross-stitch units.
+
+    Two copies of HighRes3DNetV2 are defined for two tasks with
+    feature sharing based on cross-stich modules in every starting
+    convolution layer in each residual block.
+
+    Li et al., "On the compactness, efficiency, and representation of 3D
+      convolutional networks: Brain parcellation as a pretext task", IPMI '17
+      ### Building blocks
+      {   }       -  Residual connections: see He et al. "Deep residual learning for
+                                                          image recogntion", in CVPR '16
+      [CONV]      -  Convolutional layer in form: Activation(Convolution(X))
+                     where X = input tensor or output of previous layer
+                     and Activation is a function which includes:
+                        a) Batch-Norm
+                        b) Activation Function (ReLu, PreLu, Sigmoid, Tanh etc.)
+                        c) Drop-out layer by sampling random variables from a Bernouilli distribution
+                           if p < 1
+      [CONV*]      - Convolutional layer with no activation function
+      (r)[D-CONV(d)] - Convolutional layer with dilated convolutions with blocks in
+                     pre-activation mode: D-Convolution(Activation(X))
+                     see He et al., "Identity Mappings in Deep Residual Networks", ECCV '16
+                     dilation factor = d
+                     D-CONV(2) : dilated convolution with dilation factor 2
+                     repeat factor = r
+                     e.g.
+                     (2)[D-CONV(d)]     : 2 dilated convolutional layers in a row [D-CONV] -> [D-CONV]
+                     { (2)[D-CONV(d)] } : 2 dilated convolutional layers within residual block
+    ### Diagram
+    INPUT --> [CONV] --> { (3)[D-CONV(1)] } --> { (3)[D-CONV(2)] } --> { (3)[D-CONV(4)] } -> [CONV*] -> Loss
+    """
+
+    def __init__(self,
+                 num_classes,
+                 layer_scale=1,
+                 p_init=None,
+                 w_initializer=None,
+                 w_regularizer=None,
+                 b_initializer=None,
+                 b_regularizer=None,
+                 acti_func='prelu',
+                 name='HighRes3DNetV2'):
+
+        super(CrossStichHighRes3DNetV2, self).__init__(
+            num_classes=num_classes,
+            layer_scale=layer_scale,
+            p_init=p_init,
+            w_initializer=w_initializer,
+            w_regularizer=w_regularizer,
+            b_initializer=b_initializer,
+            b_regularizer=b_regularizer,
+            acti_func=acti_func,
+            name=name)
+
+        scale = 2
+        self.layers_task_1 = [
+            {'name': 'conv_0_task_1', 'n_features': int(16/scale), 'kernel_size': 3},
+            {'name': 'res_1_task_1', 'n_features': int(16/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_1_task_1', 'n_features': int(32/scale), 'kernel_size': 3},
+            {'name': 'res_2_task_1', 'n_features': int(32/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_2_task_1', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'res_3_task_1', 'n_features': int(64/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_3_task_1', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'conv_4_task_1', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'output_task_1', 'n_features': num_classes, 'kernel_size': 1}]
+
+        self.layers_task_2 = [
+            {'name': 'conv_0_task_2', 'n_features': int(16/scale), 'kernel_size': 3},
+            {'name': 'res_1_task_2', 'n_features': int(16/scale), 'kernels': (3, 3),'repeat': 2},
+            {'name': 'conv_1_task_2', 'n_features': int(32/scale), 'kernel_size': 3},
+            {'name': 'res_2_task_2', 'n_features': int(32/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_2_task_2', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'res_3_task_2', 'n_features': int(64/scale), 'kernels': (3, 3), 'repeat': 2},
+            {'name': 'conv_3_task_2', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'conv_4_task_2', 'n_features': int(64/scale), 'kernel_size': 3},
+            {'name': 'output_task_2', 'n_features': num_classes, 'kernel_size': 1}]
+
+    def layer_op(
+            self,
+            images,
+            enable_cross_stich=True,
+            is_training=True,
+            layer_id=-1,
+            **unused_kwargs
+    ):
+        assert layer_util.check_spatial_dims(images, lambda x: x % 8 == 0)
+
+        # go through self.layers_task_1, create an instance of each layer and
+        # plugin data
+        layer_instances = []
+
+        # #### block 1 (Conv + HighRes Block) ####
+        # Conv
+        params = self.layers_task_1[0]
+        conv_layer_0_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_1 = conv_layer_0_task_1(images, is_training)
+        layer_instances.append((conv_layer_0_task_1, flow_1))
+
+        params = self.layers_task_2[0]
+        conv_layer_0_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_2 = conv_layer_0_task_2(images, is_training)
+        layer_instances.append((conv_layer_0_task_2, flow_2))
+
+        if enable_cross_stich:
+            with tf.variable_scope("cross_stitch_1"):
+                flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
+
+        # HighRes block
+        params = self.layers_task_1[1]
+        with DilatedTensor(flow_1, dilation_factor=1) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_1 = dilated.tensor
+
+        params = self.layers_task_2[1]
+        with DilatedTensor(flow_2, dilation_factor=1) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_2 = dilated.tensor
+
+        # #### block 2 (Conv + HighRes Block) ####
+        # Conv:
+        params = self.layers_task_1[2]
+        conv_layer_1_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_1 = conv_layer_1_task_1(flow_1, is_training)
+        layer_instances.append((conv_layer_1_task_1, flow_1))
+
+        params = self.layers_task_2[2]
+        conv_layer_1_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_2 = conv_layer_1_task_2(flow_2, is_training)
+        layer_instances.append((conv_layer_1_task_2, flow_2))
+
+        if enable_cross_stich:
+            with tf.variable_scope("cross_stitch_2"):
+                flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
+
+        # ResBlock:
+        params = self.layers_task_1[3]
+        with DilatedTensor(flow_1, dilation_factor=2) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_1 = dilated.tensor
+
+        params = self.layers_task_2[3]
+        with DilatedTensor(flow_2, dilation_factor=2) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_2 = dilated.tensor
+
+        # #### block 3 (Conv + HighRes Block) ####
+        # Conv:
+        params = self.layers_task_1[4]
+        conv_layer_2_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_1 = conv_layer_2_task_1(flow_1, is_training)
+        layer_instances.append((conv_layer_2_task_1, flow_1))
+
+        params = self.layers_task_2[4]
+        conv_layer_2_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_2 = conv_layer_2_task_2(flow_2, is_training)
+        layer_instances.append((conv_layer_2_task_2, flow_2))
+
+        if enable_cross_stich:
+            with tf.variable_scope("cross_stitch_3"):
+                flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
+
+        # ResBlock:
+        params = self.layers_task_1[5]
+        with DilatedTensor(flow_1, dilation_factor=4) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_1 = dilated.tensor
+
+        params = self.layers_task_2[5]
+        with DilatedTensor(flow_1, dilation_factor=4) as dilated:
+            for j in range(params['repeat']):
+                res_block = HighResBlock(
+                    params['n_features'],
+                    params['kernels'],
+                    acti_func=self.acti_func,
+                    w_initializer=self.initializers['w'],
+                    w_regularizer=self.regularizers['w'],
+                    name='%s_%d' % (params['name'], j))
+                dilated.tensor = res_block(dilated.tensor, is_training)
+                layer_instances.append((res_block, dilated.tensor))
+        flow_2 = dilated.tensor
+
+        # #### 3 x Conv ####
+
+        params = self.layers_task_1[6]
+        conv_layer_3_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_1 = conv_layer_3_task_1(flow_1, is_training)
+        layer_instances.append((conv_layer_3_task_1, flow_1))
+
+        params = self.layers_task_2[6]
+        conv_layer_3_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_2 = conv_layer_3_task_2(flow_2, is_training)
+        layer_instances.append((conv_layer_3_task_2, flow_2))
+
+        if enable_cross_stich:
+            with tf.variable_scope("cross_stitch_4"):
+                flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
+
+        params = self.layers_task_1[7]
+        conv_layer_4_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_1 = conv_layer_4_task_1(flow_1, is_training)
+        layer_instances.append((conv_layer_4_task_1, flow_1))
+
+        params = self.layers_task_2[7]
+        conv_layer_4_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=self.acti_func,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        flow_2 = conv_layer_4_task_2(flow_2, is_training)
+        layer_instances.append((conv_layer_4_task_2, flow_2))
+
+        if enable_cross_stich:
+            with tf.variable_scope("cross_stitch_5"):
+                flow_1, flow_2 = apply_cross_stitch(flow_1, flow_2)
+
+        # Output Layers:
+        params = self.layers_task_1[8]
+        fc_layer_task_1 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=None,
+            with_bn=False,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        output_1 = fc_layer_task_1(flow_1, is_training)
+        layer_instances.append((fc_layer_task_1, output_1))
+
+        params = self.layers_task_2[8]
+        fc_layer_task_2 = ConvolutionalLayer(
+            n_output_chns=params['n_features'],
+            kernel_size=params['kernel_size'],
+            acti_func=None,
+            with_bn=False,
+            w_initializer=self.initializers['w'],
+            w_regularizer=self.regularizers['w'],
+            name=params['name'])
+        output_2 = fc_layer_task_2(flow_2, is_training)
+        layer_instances.append((fc_layer_task_2, output_2))
+
+        # set training properties
+        if is_training:
+            # This is here because the main application also returns
+            # categoricals for more complex networks..
+            categoricals = None
+            self._print(layer_instances)
+            return [output_1, output_2], categoricals
+
+        return output_1, output_2
+
+    def _print(self, list_of_layers):
+        for (op, _) in list_of_layers:
+            print(op)
