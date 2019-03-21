@@ -1129,14 +1129,14 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 P_initialiser = CategoricalVariableInitByD(N)
                 dirichlet_init = P_initialiser()
                 # Output non-transformed probabilities so need to transform them
-                dirichlet_init = np.float32(np.asarray(np.log(np.exp(dirichlet_init) - 1.0)))
+                dirichlet_init = tf.math.log(tf.math.exp(dirichlet_init) - 1.0)
             elif p_init_type == 'vertex_allocation':
                 # Allocate p to vertex [1, 0, 0], [0, 1, 0], [0, 0, 1] based on proportions in self.init_cat
                 # Do not use inverse soft plus first as CategoricalVariableInitByVertex expects proportions, not probs!
                 P_initialiser = CategoricalVariableInitByVertex(cat_probs_init, N)
                 dirichlet_init = P_initialiser()
                 # These are now probabilities so can use inverse transform
-                dirichlet_init = np.float32(np.asarray(np.log(np.exp(dirichlet_init) - 1.0)))
+                dirichlet_init = tf.math.log(tf.math.exp(dirichlet_init) - 1.0)
             else:
                 # Transform initial probabilities with inverse softplus
                 cat_probs_init = np.float32(np.asarray(np.log(np.exp(cat_probs_init) - 1.0)))
@@ -1159,6 +1159,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
 
             else:
                 dirichlet_p = tf.constant(dirichlet_init)
+                dirichlet_p = tf.nn.softplus(dirichlet_p)
+                dirichlet_p = tf.divide(dirichlet_p, tf.reduce_sum(dirichlet_p, axis=1, keepdims=True))
 
             if self.batch_sampling:
                 if type(input_tensor) is list:
