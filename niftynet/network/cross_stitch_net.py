@@ -366,7 +366,7 @@ class CrossStichHighRes3DNetV2(BaseNet):
             {'name': 'res_3_task_1', 'n_features': int(64/scale), 'kernels': (3, 3), 'repeat': 2},
             {'name': 'conv_3_task_1', 'n_features': int(64/scale), 'kernel_size': 3},
             {'name': 'conv_4_task_1', 'n_features': int(64/scale), 'kernel_size': 3},
-            {'name': 'output_task_1', 'n_features': num_classes, 'kernel_size': 1}]
+            {'name': 'output_task_1', 'n_features': num_classes[0], 'kernel_size': 1}]
 
         self.layers_task_2 = [
             {'name': 'conv_0_task_2', 'n_features': int(16/scale), 'kernel_size': 3},
@@ -377,7 +377,7 @@ class CrossStichHighRes3DNetV2(BaseNet):
             {'name': 'res_3_task_2', 'n_features': int(64/scale), 'kernels': (3, 3), 'repeat': 2},
             {'name': 'conv_3_task_2', 'n_features': int(64/scale), 'kernel_size': 3},
             {'name': 'conv_4_task_2', 'n_features': int(64/scale), 'kernel_size': 3},
-            {'name': 'output_task_2', 'n_features': num_classes, 'kernel_size': 1}]
+            {'name': 'output_task_2', 'n_features': num_classes[1], 'kernel_size': 1}]
 
     def layer_op(
             self,
