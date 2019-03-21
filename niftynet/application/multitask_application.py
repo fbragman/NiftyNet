@@ -300,7 +300,8 @@ class MultiTaskApplication(BaseApplication):
                         'min_temp': self.multitask_param.min_temp,
                         'inference_iter': self.multitask_param.inference_iter,
                         'concat_tensors': self.multitask_param.concat_tensors,
-                        'p_init_type': self.multitask_param.p_init_type
+                        'p_init_type': self.multitask_param.p_init_type,
+                        'apply_cs': self.multitask_param.apply_cs
                         }
 
             # Forward pass, categoricals will be 'None' if vanilla networks are used
@@ -502,7 +503,8 @@ class MultiTaskApplication(BaseApplication):
                         'constant_grouping': self.multitask_param.constant_grouping,
                         'min_temp': self.multitask_param.min_temp,
                         'concat_tensors': self.multitask_param.concat_tensors,
-                        'p_init_type': self.multitask_param.p_init_type
+                        'p_init_type': self.multitask_param.p_init_type,
+                        'apply_cs': self.multitask_param.apply_cs
                         }
 
             net_out, categoricals = self.net(image, **net_args)
