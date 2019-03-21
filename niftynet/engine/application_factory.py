@@ -86,6 +86,8 @@ SUPPORTED_NETWORK = {
     "highres_mt_vanilla": 'niftynet.network.highres_mt_vanilla.VanillaMTHigh',
     "test_sfg": "niftynet.network.demo_sfg.TestSFG",
 
+    "highres_cross_stitch": 'niftynet.network.cross_stitch_net.CrossStichHighRes3DNetV2',
+
     # autoencoder
     "vae": 'niftynet.network.vae.VAE'
 }
