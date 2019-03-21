@@ -575,7 +575,6 @@ class CrossStichHighRes3DNetV2(BaseNet):
         flow_2 = dilated.tensor
 
         # #### 3 x Conv ####
-
         params = self.layers_task_1[6]
         conv_layer_3_task_1 = ConvolutionalLayer(
             n_output_chns=params['n_features'],
