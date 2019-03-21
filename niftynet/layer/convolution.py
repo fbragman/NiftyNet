@@ -14,6 +14,8 @@ from niftynet.layer.probability import Dirichlet, GumbelSoftmax, HardCategorical
 from niftynet.layer.probability import CategoricalVariableInitByP, CategoricalVariableInitByD, CategoricalVariableInitByVertex
 from niftynet.layer import group_ops
 
+from niftynet.network.cross_stitch_net import apply_cross_stitch
+
 SUPPORTED_PADDING = set(['SAME', 'VALID'])
 
 
@@ -1062,7 +1064,8 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                  keep_prob=None,
                  p_init=False,
                  concat_tensors=True,
-                 p_init_type=None):
+                 p_init_type=None,
+                 apply_cs=False):
 
         if self.with_bn:
             if is_training is None:
@@ -1287,9 +1290,17 @@ class LearnedCategoricalGroupConvolutionalLayer(TrainableLayer):
                 else:
 
                     # Add them
-                    task_1_tensor = output_layers[0] + output_layers[1]
-                    task_2_tensor = output_layers[2] + output_layers[1]
-                    shared_tensor = output_layers[1]
+                    if apply_cs is True:
+                        task_1_tensor = output_layers[0] + output_layers[1]
+                        task_2_tensor = output_layers[2] + output_layers[1]
+                        shared_tensor = output_layers[1]
+
+                        task_1_tensor, task_2_tensor = apply_cross_stitch(task_1_tensor, task_2_tensor)
+
+                    else:
+                        task_1_tensor = output_layers[0] + output_layers[1]
+                        task_2_tensor = output_layers[2] + output_layers[1]
+                        shared_tensor = output_layers[1]
 
         elif self.group_connection == 'separate':
             with tf.name_scope('separate_tensor_merge'):

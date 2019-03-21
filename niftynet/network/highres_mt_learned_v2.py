@@ -82,6 +82,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
         # type of intialisation
         p_init_type = unused_kwargs['p_init_type']
 
+        apply_cs = unused_kwargs['apply_cs']
+
         if use_annealing:
             # anneal every iter
             if not is_training:
@@ -111,7 +113,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(images, tau_val, is_training,
                                                      concat_tensors=concat_tensors,
-                                                     p_init_type=p_init_type)
+                                                     p_init_type=p_init_type,
+                                                     apply_cs=apply_cs)
 
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
@@ -171,7 +174,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
                                                      concat_tensors=concat_tensors,
-                                                     p_init_type=p_init_type)
+                                                     p_init_type=p_init_type,
+                                                     apply_cs=apply_cs)
 
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
@@ -219,7 +223,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
                                                      concat_tensors=concat_tensors,
-                                                     p_init_type=p_init_type)
+                                                     p_init_type=p_init_type,
+                                                     apply_cs=apply_cs)
 
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
@@ -267,7 +272,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(clustered_res_block, tau_val, is_training,
                                                      concat_tensors=concat_tensors,
-                                                     p_init_type=p_init_type)
+                                                     p_init_type=p_init_type,
+                                                     apply_cs=apply_cs)
 
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
@@ -290,7 +296,8 @@ class LearnedMTHighRes3DNet2(BaseNet):
             name=params['name'])
         grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training,
                                                      concat_tensors=concat_tensors,
-                                                     p_init_type=p_init_type)
+                                                     p_init_type=p_init_type,
+                                                     apply_cs=apply_cs)
 
         layer_instances.append((conv_layer, grouped_flow))
         cat_instances.append((d_p, learned_mask))
@@ -324,7 +331,7 @@ class LearnedMTHighRes3DNet2(BaseNet):
 
         # set training properties
         if is_training:
-            self._print(layer_instances)
+            #self._print(layer_instances)
             if batch_sampling:
                 # The p's have been broadcasted to allow sampling independently across the batch
                 # Reshape back to [n_kernels, n_class] shape

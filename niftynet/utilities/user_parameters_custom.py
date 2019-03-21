@@ -467,6 +467,13 @@ def __add_multitask_args(parser):
         type=str2boolean,
         default=False)
 
+    parser.add_argument(
+        "--apply_cs",
+        metavar='',
+        help="[Training] apply cross-stitch to constatn grouping",
+        type=str2boolean,
+        default=False)
+
     from niftynet.application.multitask_application import SUPPORTED_INPUT
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser
