@@ -58,31 +58,31 @@ def set_paths_to_local(config, type_of_data, model_dir):
 
     if type_of_data == 'face':
 
-        root_face = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/iccv_paper/face'
+        root_face_root = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/iccv_paper/face'
+        root_face = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/experiments/iccv_paper/small_training_set/face'
 
         path_to_m1 = '/home/fbragman/documents/utkface/UTKface_Aligned_cropped/UTKFace'
         path_to_m2 = '/home/fbragman/documents/utkface/UTKface_Aligned_cropped/UTKFace_Gender'
         path_to_m3 = '/home/fbragman/documents/utkface/UTKface_Aligned_cropped/UTKFace_Age_d100'
-        path_to_dataset_split = os.path.join(root_face, 'dataset_split.csv')
+        path_to_dataset_split = os.path.join(root_face, 'dataset_split_small_train.csv')
         path_to_histogram_ref_file = ''
 
-        config.set('MODALITY1', 'csv_file', os.path.join(root_face, 'MODALITY1.csv'))
-        config.set('MODALITY2', 'csv_file', os.path.join(root_face, 'MODALITY2.csv'))
-        config.set('MODALITY3', 'csv_file', os.path.join(root_face, 'MODALITY3.csv'))
+        config.set('MODALITY1', 'csv_file', os.path.join(root_face_root, 'MODALITY1.csv'))
+        config.set('MODALITY2', 'csv_file', os.path.join(root_face_root, 'MODALITY2.csv'))
+        config.set('MODALITY3', 'csv_file', os.path.join(root_face_root, 'MODALITY3.csv'))
+
+        config.set('SYSTEM', 'dataset_split_file', path_to_dataset_split)
+        config.set('NETWORK', 'histogram_ref_file', path_to_histogram_ref_file)
 
     else:
 
         path_to_m1 = '/home/fbragman/documents/DeepSyn/data/Prostate/training_data_synthesis/T2_corrected_with0'
         path_to_m2 = '/home/fbragman/documents/DeepSyn/data/Prostate/training_data_synthesis/CT/CT_didide_1024_p1'
         path_to_m3 = '/home/fbragman/documents/DeepSyn/data/Prostate/training_data_segmentation/seg'
-        path_to_dataset_split = 'a'
-        path_to_histogram_ref_file = 'b'
 
     config.set('MODALITY1', 'path_to_search', path_to_m1)
     config.set('MODALITY2', 'path_to_search', path_to_m2)
     config.set('MODALITY3', 'path_to_search', path_to_m3)
-    config.set('SYSTEM', 'dataset_split_file', path_to_dataset_split)
-    config.set('NETWORK', 'histogram_ref_file', path_to_histogram_ref_file)
 
     if model_dir is not None:
         config.set('SYSTEM', 'model_dir', model_dir)
@@ -107,7 +107,6 @@ def str2boolean(input):
 
 if __name__ == "__main__":
 
-
     args = get_user_params()
     extra_args = []
 
@@ -131,8 +130,8 @@ if __name__ == "__main__":
     config = configparser.RawConfigParser()
     config.read(args.config_path)
 
-    if str2boolean(args.local) is True:
-        config = set_paths_to_local(config, args.method, args.model_dir)
+    #if str2boolean(args.local) is True:
+    #    config = set_paths_to_local(config, args.method, args.model_dir)
 
     print(args.config_path)
 
@@ -168,8 +167,17 @@ if __name__ == "__main__":
     config.set('INFERENCE', 'dataset_to_infer', eval_set)
     config.set('INFERENCE', 'inference_iter', args.training_iter)
     config.set('INFERENCE', 'border', (0, 0, 0))
-    config.set('INFERENCE', 'output_interp_order', -1)
-    config.set('INFERENCE', 'spatial_window_size', (200, 200))
+
+    if args.method == 'prostate':
+        config.set('INFERENCE', 'output_interp_order', 3)
+    else:
+        config.set('INFERENCE', 'output_interp_order', -1)
+
+    if args.method == 'face':
+        config.set('INFERENCE', 'spatial_window_size', (200, 200))
+    else:
+        config.set('INFERENCE', 'spatial_window_size', (288, 288, 1))
+        config.set('INFERENCE', 'border', (16, 16, 0))
 
     root_output = os.path.join(args.output_prefix, eval_set)
 

@@ -1,22 +1,23 @@
 import ternary
+import matplotlib.pyplot as plt
 import numpy as np
 
 
 def draw_trajectory(list_of_dist, ax):
 
+    axes_colors = {'b': 'g', 'l': 'b', 'r': 'r'}
     tax = ternary.TernaryAxesSubplot(ax=ax)
-    axes_colors = {'b': 'g', 'l': 'r', 'r': 'b'}
     tax.boundary(linewidth=2.0, axes_colors=axes_colors)
 
     tax.gridlines(multiple=0.1, linewidth=1,
-                  right_kwargs={'color': axes_colors['b']},
-                  horizontal_kwargs={'color': axes_colors['l']},
-                  left_kwargs={'color': axes_colors['r']},
+                  left_kwargs={'color': 'g'},
+                  right_kwargs={'color': 'b'},
+                  horizontal_kwargs={'color': 'r'},
                   alpha=0.7)
 
     # iterate over kernel
     for kernel_traj in list_of_dist:
-        tax.plot_colored_trajectory(kernel_traj, linewidth=1.5)
+        tax.plot_colored_trajectory(kernel_traj, linewidth=1.0, cmap=plt.cm.get_cmap('cividis'))
 
     fontsize = 10
     tax.right_axis_label("Task 2 kernel $\mathbf{p}$\n", fontsize=fontsize, color=axes_colors['r'], offset=0.15)
@@ -29,7 +30,7 @@ def draw_trajectory(list_of_dist, ax):
     # Set and format axes ticks.
     scale = 10
     ticks = [i / float(scale) for i in range(scale + 1)]
-    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=True,
+    tax.ticks(ticks=ticks, axis='rlb', linewidth=0.7, clockwise=False,
               axes_colors=axes_colors, offset=0.04, tick_formats="%0.1f")
 
 
@@ -42,12 +43,17 @@ def draw_heat_contours(dist, ax, sigma=None, scale=None, is_permute=True):
         nbins = scale + 1
 
     tax = ternary.TernaryAxesSubplot(ax=ax, scale=scale)
-
-    axes_colors = {'b': 'g', 'l': 'r', 'r': 'b'}
+    axes_colors = {'b': 'g', 'l': 'b', 'r': 'r'}
     tax.boundary(linewidth=2.0, axes_colors=axes_colors)
 
+    #tax.gridlines(multiple=0.1, linewidth=1,
+    #              left_kwargs={'color': 'g'},
+    #              right_kwargs={'color': 'b'},
+    #              horizontal_kwargs={'color': 'r'},
+    #              alpha=0.7)
+
     if is_permute:
-        dist = dist[:, [1, 2, 0]]
+        dist = dist[:, [1, 0, 2]]
 
     x = [p[0] for p in dist]
     y = [p[1] for p in dist]
@@ -64,15 +70,21 @@ def draw_heat_contours(dist, ax, sigma=None, scale=None, is_permute=True):
     from scipy.ndimage.filters import gaussian_filter
     if sigma is None:
         sigma = 5
-    kde = gaussian_filter(H, sigma=5)
+
+    transformation = 1.0
+
+    kde = gaussian_filter(H, sigma=sigma)
     interp_dict = dict()
     binx = np.linspace(0, 1, nbins)
     for i, x in enumerate(binx):
         for j, y in enumerate(binx):
             for k, z in enumerate(binx):
-                interp_dict[(i, j, k)] = kde[i, j, k]
+                interp_dict[(i, j, k)] = pow(kde[i, j, k], transformation)
 
-    tax.heatmap(interp_dict, vmin=np.min(kde), vmax=np.max(kde), colorbar=False)
+    min_kde = np.min(pow(kde, transformation))
+    max_kde = np.max(pow(kde, transformation))
+
+    tax.heatmap(interp_dict, vmin=min_kde, vmax=max_kde, colorbar=False, cmap=plt.cm.get_cmap('inferno'))
 
     fontsize = 10
     tax.right_axis_label("Task 2 kernel $\mathbf{p}$", fontsize=fontsize, color=axes_colors['r'], offset=0.175)

@@ -6,6 +6,7 @@ from subprocess import call
 import configparser
 import os
 
+
 def get_user_params():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config_path", help="Configuration path.")
@@ -49,6 +50,7 @@ if __name__ == "__main__":
     multi_task_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_multitask.py'
     reg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_regress.py'
     class_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_classify.py'
+    seg_app = '/scratch2/NOT_BACKED_UP/fbragman/DeepSyn/code/NiftyNet_github_fork/NiftyNet/net_segment.py'
 
     pyconda = '/home/fbragman/miniconda3/envs/tf_d/bin/python'
 
@@ -120,8 +122,10 @@ if __name__ == "__main__":
                 calling_function(pyconda, multi_task_app, tmp_config)
             elif args.method == 'class':
                 calling_function(pyconda, class_app, tmp_config)
-            else:
+            elif args.method == 'reg':
                 calling_function(pyconda, reg_app, tmp_config)
+            else:
+                calling_function(pyconda, seg_app, tmp_config)
 
         except:
             print('END OF FUNCTION CALL')

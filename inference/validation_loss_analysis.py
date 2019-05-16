@@ -17,6 +17,10 @@ def get_flags_to_look(task_type, model_type, recip_flag, reverse_flag):
             task_1 = 'task_1_mae'
             task_2 = 'task_2_accuracy'
             recip = [True, False]
+        else:
+            task_1 = 'task_1_mae'
+            task_2 = 'task_2_dice'
+            recip = [True, True]
     else:
         if model_type == 'face':
             task_2 = None
@@ -61,7 +65,6 @@ def analyse_validation_loss(path_to_log, path_to_checkpoints, task_type, model_t
                                                   reverse_flag=reverse_flag)
 
         iter = calculate_best_val_loss(validation_lines, task_1, task_2, path_to_log, recip, task_1, task_2)
-
         # find saved tensorflow checkpoints and saved iteration closest to global_iter
         closest_check_point_iter = search_checkpoints(path_to_checkpoints, iter)
 
