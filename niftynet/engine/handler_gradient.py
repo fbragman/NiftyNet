@@ -35,6 +35,7 @@ class ApplyGradients(object):
         """
         with tf.name_scope('ApplyGradients'):
             gradients = sender.gradients_collector.gradients
+            #gradients2 = sender.gradients_collector.gradients
             # vars_to_increase = [...]
             # gradients = [(var, grad) if var.name not in for grads in gradients]
             bn_ops = tf.get_collection(BN_COLLECTION, PRIMARY_NAME_SCOPE)

@@ -131,6 +131,7 @@ class ApplicationDriver(object):
         assert app_param, 'application specific param. not specified'
         app_module = ApplicationFactory.create(app_param.name)
         self.app = app_module(net_param, action_param, system_param.action)
+        #self.app.model_dir = system_param.model_dir
 
         # clear the cached file lists
         self.data_partitioner.reset()

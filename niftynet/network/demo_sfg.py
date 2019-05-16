@@ -111,7 +111,8 @@ class TestSFG(BaseNet):
                     w_initializer=self.initializers['w'],
                     w_regularizer=self.regularizers['w'],
                     name=params['name'])
-                grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training)
+                grouped_flow, learned_mask, d_p = conv_layer(grouped_flow, tau_val, is_training,
+                                                             group_mask=learned_mask)
                 cat_instances.append((d_p, learned_mask))
                 layer_instances.append((conv_layer, grouped_flow))
 

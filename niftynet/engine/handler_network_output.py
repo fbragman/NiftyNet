@@ -46,6 +46,12 @@ class OutputInterpreter(object):
         :return:
         """
         _iter_msg = msg['iter_msg']
+        # _iter_msg.current_iter
+        # _iter_msg.current_iter_output[NETWORK_OUTPUT] <- this is a dictionary of numpy arrays
+        # indexed by whatever key you set
+        # if _iter_msg.current_iter % 1000 == 0:
+            # for key, value in _iter_msg.current_iter_output[NETWORK_OUTPUT]:
+            #   np.save(os.path.join(sender.model_dir, key, str(_iter_msg.current_iter)), value)
         waiting_for_more_output = sender.interpret_output(
             _iter_msg.current_iter_output[NETWORK_OUTPUT])
         if not waiting_for_more_output:

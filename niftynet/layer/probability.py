@@ -68,7 +68,7 @@ class CategoricalVariableInitByVertex(object):
         :return:
         """
         hardCat = HardCategorical(self.probs, self.num_kernel)
-        return hardCat(is_constant=False)
+        return hardCat(is_constant=False, is_add=True)
 
 
 class Dirichlet(object):
@@ -123,7 +123,7 @@ class HardCategorical(object):
         self.p = proportions
         self.N = N
 
-    def __call__(self, is_constant=True):
+    def __call__(self, is_constant=True, is_add=False):
         """
         Create one-hot mask for N rows based on proportions defined by probabilities
         :return:
@@ -140,14 +140,28 @@ class HardCategorical(object):
             num[idx] = num[idx] + delta
 
         onehot = np.zeros((self.N, 3), dtype=np.float32)
-        onehot[:num[0], 0] = 1
-        onehot[num[0]:num[0]+num[1], 1] = 1
-        onehot[num[0]+num[1]:, 2] = 1
+
+        if is_add:
+            onehot[:num[0], 0] = 0.990
+            onehot[:num[0], 1] = 0.005
+            onehot[:num[0], 2] = 0.005
+
+            onehot[num[0]:num[0]+num[1], 1] = 0.990
+            onehot[num[0]:num[0]+num[1], 0] = 0.005
+            onehot[num[0]:num[0]+num[1], 2] = 0.005
+
+            onehot[num[0]+num[1]:, 2] = 0.990
+            onehot[num[0]+num[1]:, 0] = 0.005
+            onehot[num[0]+num[1]:, 1] = 0.005
+        else:
+            onehot[:num[0], 0] = 1
+            onehot[num[0]:num[0] + num[1], 1] = 1
+            onehot[num[0] + num[1]:, 2] = 1
 
         if is_constant:
             cat_mask = tf.constant(onehot, dtype=tf.float32)
         else:
-            cat_mask = onehot
+            cat_mask = tf.convert_to_tensor(onehot, dtype=tf.float32)
 
         return cat_mask
 
