@@ -29,6 +29,8 @@ SUPPORTED_APP = {
     'net_classify':
         'niftynet.application.classification_application.'
         'ClassificationApplication',
+    'net_multiinput':
+        'niftynet.application.multi_input_multi_task_application.MultiInputApplication'
 }
 
 SUPPORTED_NETWORK = {
