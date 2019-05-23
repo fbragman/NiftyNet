@@ -5,6 +5,8 @@ Loss functions for multi-class segmentation
 from __future__ import absolute_import, print_function, division
 
 import tensorflow as tf
+import tensorflow_probability as tfp
+tfd = tfp.distributions
 
 from niftynet.engine.application_factory import LossSegmentationFactory
 from niftynet.layer.base_layer import Layer
@@ -133,6 +135,50 @@ class LossFunction(Layer):
                 data_loss.append(tf.reduce_mean(loss_batch))
             # loss averaged over multiple scales
             return tf.reduce_mean(data_loss)
+
+
+def scaled_cross_entropy_approx(prediction, ground_truth, noise):
+    """
+    Approximation of the scaled cross entropy seen in Kendall et al. CVPR 2018
+    :param prediction:
+    :param ground_truth:
+    :param noise:
+    :return:
+    """
+    raise NotImplementedError
+
+
+def scaled_cross_entropy(prediction, ground_truth, noise):
+    """
+    Scaled cross entropy i.e. p(y=c|x) = Softmax(logits/sigma)
+    No approximation used in this form
+    :param prediction:
+    :param ground_truth:
+    :param noise:
+    :return:
+    """
+    raise NotImplementedError
+
+
+def cross_entropy_reparam(prediction, ground_truth, noise, T=10):
+    """
+    Modelling logits as random draws from a Gaussian N(prediction, sigma^2) as seen in Kendall et al. NIPS 2017
+    :param prediction:
+    :param ground_truth:
+    :param noise:
+    :param T
+    :return:
+    """
+
+    # Define a single scalar Normal distribution.
+    dist = tfd.Normal(loc=0., scale=1.)
+
+
+    # Computed the expected log-likelihood w.r.t distribution around the logit via MC-integration
+    for _ in range(T):
+
+
+    raise NotImplementedError
 
 
 def cross_entropy(prediction, ground_truth, weight_map=None):
