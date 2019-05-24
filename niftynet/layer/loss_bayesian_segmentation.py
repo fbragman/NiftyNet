@@ -81,10 +81,12 @@ class LossFunction(Layer):
                         # pred and ground_truth
                         pred_b, ground_truth_b = args[0]
                         weight_b = None
+                        noise_b = None
                     else:
                         pred_b, ground_truth_b, noise_b, weight_b = args[0]
 
                     pred_b = tf.reshape(pred_b, [-1, self._num_classes])
+
                     # performs softmax if required
                     if self._softmax:
                         pred_b = tf.cast(pred_b, dtype=tf.float32)
@@ -103,6 +105,11 @@ class LossFunction(Layer):
                     ground_truth_b = tf.reshape(ground_truth_b, ref_shape)
                     if ground_truth_b.shape.as_list()[-1] == 1:
                         ground_truth_b = tf.squeeze(ground_truth_b, axis=-1)
+
+                    if noise_b is not None:
+                        noise_b = tf.reshape(noise_b, ref_shape)
+                        if noise_b.shape.as_list()[-1] == 1:
+                            noise_b = tf.squeeze(noise_b, axis=-1)
 
                     if weight_b is not None:
                         weight_b = tf.reshape(weight_b, ref_shape)
@@ -137,27 +144,57 @@ class LossFunction(Layer):
             return tf.reduce_mean(data_loss)
 
 
-def scaled_cross_entropy_approx(prediction, ground_truth, noise):
+def scaled_cross_entropy_approx(prediction, ground_truth, noise, constant=None):
     """
     Approximation of the scaled cross entropy seen in Kendall et al. CVPR 2018
     :param prediction:
     :param ground_truth:
-    :param noise:
+    :param noise: network trained on to predict noise = log(sigma^2) so sigma^2 = exp(noise)
+    :param constant: numerical constant to add to sigma^2
     :return:
     """
-    raise NotImplementedError
+    if len(ground_truth.shape) == len(prediction.shape):
+        ground_truth = ground_truth[..., -1]
+    ground_truth = tf.cast(ground_truth, tf.int32)
+
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        logits=prediction, labels=ground_truth)
+
+    small_constant = constant
+    if small_constant > 0. and small_constant is not None:
+        noise = tf.log(tf.exp(noise) + small_constant)
+
+    sigma = tf.exp(-noise)
+
+    precision = 0.5 * (tf.exp(-noise))
+    scaled_loss = tf.add(tf.multiply(precision, loss), noise)
+
+    return tf.reduce_mean(scaled_loss)
 
 
-def scaled_cross_entropy(prediction, ground_truth, noise):
+def scaled_cross_entropy(prediction, ground_truth, noise, constant=None):
     """
-    Scaled cross entropy i.e. p(y=c|x) = Softmax(logits/sigma)
-    No approximation used in this form
+    Scaled Softmax i.e. p(y=c|x) = Softmax(logits/sigma)
+
+    -log(Softmax) === Cross-Entropy loss
+
     :param prediction:
     :param ground_truth:
-    :param noise:
+    :param noise: network trained on to predict noise = log(sigma^2) so sigma^2 = exp(noise)
+    :param constant: numerical constant to add to sigma^2
     :return:
     """
-    raise NotImplementedError
+    if len(ground_truth.shape) == len(prediction.shape):
+        ground_truth = ground_truth[..., -1]
+    ground_truth = tf.cast(ground_truth, tf.int32)
+
+    sigma = tf.exp(-noise)
+    scaled_logits = tf.divide(prediction, sigma)
+
+    entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        logits=scaled_logits, labels=ground_truth)
+
+    return tf.reduce_mean(entropy)
 
 
 def cross_entropy_reparam(prediction, ground_truth, noise, T=10):
@@ -169,38 +206,4 @@ def cross_entropy_reparam(prediction, ground_truth, noise, T=10):
     :param T
     :return:
     """
-
-    # Define a single scalar Normal distribution.
-    dist = tfd.Normal(loc=0., scale=1.)
-
-
-    # Computed the expected log-likelihood w.r.t distribution around the logit via MC-integration
-    for _ in range(T):
-
-
     raise NotImplementedError
-
-
-def cross_entropy(prediction, ground_truth, weight_map=None):
-    """
-    Function to calculate the cross-entropy loss function
-
-    :param prediction: the logits (before softmax)
-    :param ground_truth: the segmentation ground truth
-    :param weight_map:
-    :return: the cross-entropy loss
-    """
-    if len(ground_truth.shape) == len(prediction.shape):
-        ground_truth = ground_truth[..., -1]
-
-    # TODO trace this back:
-    ground_truth = tf.cast(ground_truth, tf.int32)
-
-    entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        logits=prediction, labels=ground_truth)
-
-    if weight_map is None:
-        return tf.reduce_mean(entropy)
-
-    weight_sum = tf.maximum(tf.reduce_sum(weight_map), 1e-6)
-    return tf.reduce_sum(entropy * weight_map / weight_sum)
