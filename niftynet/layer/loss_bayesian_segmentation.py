@@ -14,7 +14,7 @@ from niftynet.layer.base_layer import Layer
 class LossFunction(Layer):
     def __init__(self,
                  n_class,
-                 loss_type='scaled_approx_softmax',
+                 loss_type='ScaledCrossEntropyApprox',
                  loss_func_params=None,
                  name='loss_function'):
 
@@ -195,7 +195,7 @@ def scaled_cross_entropy(prediction, ground_truth, noise, constant=None):
     return tf.reduce_mean(entropy)
 
 
-def cross_entropy_reparam(prediction, ground_truth, noise, T=10):
+def stochastic_cross_entropy(prediction, ground_truth, noise, T=10):
     """
     Modelling logits as random draws from a Gaussian N(prediction, sigma^2) as seen in Kendall et al. NIPS 2017
 

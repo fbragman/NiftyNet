@@ -118,6 +118,21 @@ SUPPORTED_LOSS_REGRESSION = {
         'niftynet.layer.loss_regression.huber_loss'
 }
 
+SUPPORTED_LOSS_BAYESIAN_REGRESSION = {
+    "Gaussian":
+        'niftynet.layer.loss_bayesian_regression.gaussian_likelihood_loss'
+}
+
+SUPPORTED_LOSS_BAYESIAN_SEGMENTATION = {
+    "ScaledCrossEntropy":
+        'niftynet.layer.loss_bayesian_segmentation.scaled_cross_entropy',
+    "ScaledCrossEntropyApprox":
+        'niftynet.layer.loss_bayesian_segmentation.scaled_cross_entropy_approx',
+    "StochasticCrossEntropy":
+        'niftynet.layer.loss_bayesian_segmentation.scaled_cross_entropy',
+
+}
+
 SUPPORTED_LOSS_CLASSIFICATION = {
     "CrossEntropy":
         'niftynet.layer.loss_classification.cross_entropy',
@@ -328,6 +343,24 @@ class LossSegmentationFactory(ModuleFactory):
     """
     SUPPORTED = SUPPORTED_LOSS_SEGMENTATION
     type_str = 'segmentation loss'
+
+
+class LossBayesianSegmentationFactory(ModuleFactory):
+    """
+    Import a segmentation loss function from ``niftynet.layer`` or
+    from user specified string
+    """
+    SUPPORTED = SUPPORTED_LOSS_BAYESIAN_SEGMENTATION
+    type_str = 'segmentation bayesian loss'
+
+
+class LossBayesianRegressionFactory(ModuleFactory):
+    """
+    Import a segmentation loss function from ``niftynet.layer`` or
+    from user specified string
+    """
+    SUPPORTED = SUPPORTED_LOSS_BAYESIAN_REGRESSION
+    type_str = 'regression bayesian loss'
 
 
 class LossRegressionFactory(ModuleFactory):
