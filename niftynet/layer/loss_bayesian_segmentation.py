@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Loss functions for multi-class segmentation
+Loss functions for bayesian segmentation loss functions
+Support for:    i) Stochastic Cross-Entropy
+                ii) Scaled Cross-Entropy
+                iii) Scaled Cross-Entropy with numerical approximation
 """
 from __future__ import absolute_import, print_function, division
 
