@@ -6,7 +6,6 @@ from __future__ import absolute_import, print_function, division
 
 import tensorflow as tf
 import tensorflow_probability as tfp
-tfd = tfp.distributions
 
 from niftynet.engine.application_factory import LossSegmentationFactory
 from niftynet.layer.base_layer import Layer
@@ -160,15 +159,11 @@ def scaled_cross_entropy_approx(prediction, ground_truth, noise, constant=None):
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
         logits=prediction, labels=ground_truth)
 
-    small_constant = constant
-    if small_constant > 0. and small_constant is not None:
-        noise = tf.log(tf.exp(noise) + small_constant)
+    if constant > 0. and constant is not None:
+        noise = tf.log(tf.exp(noise) + constant)
 
-    sigma = tf.exp(-noise)
-
-    precision = 0.5 * (tf.exp(-noise))
-    scaled_loss = tf.add(tf.multiply(precision, loss), noise)
-
+    sigma_squared = tf.exp(noise)
+    scaled_loss = tf.divide(loss, sigma_squared) + 0.5*noise
     return tf.reduce_mean(scaled_loss)
 
 
@@ -188,8 +183,11 @@ def scaled_cross_entropy(prediction, ground_truth, noise, constant=None):
         ground_truth = ground_truth[..., -1]
     ground_truth = tf.cast(ground_truth, tf.int32)
 
-    sigma = tf.exp(-noise)
-    scaled_logits = tf.divide(prediction, sigma)
+    if constant > 0. or constant is not None:
+        noise = tf.log(tf.exp(noise) + constant)
+
+    sigma_squared = tf.exp(noise)
+    scaled_logits = tf.divide(prediction, sigma_squared)
 
     entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
         logits=scaled_logits, labels=ground_truth)
@@ -200,10 +198,41 @@ def scaled_cross_entropy(prediction, ground_truth, noise, constant=None):
 def cross_entropy_reparam(prediction, ground_truth, noise, T=10):
     """
     Modelling logits as random draws from a Gaussian N(prediction, sigma^2) as seen in Kendall et al. NIPS 2017
+
+    1. x | W ~ Normal(fW, sigma^2)
+    2. p = Softmax(x)
+    where fW is the network parameterised with weights W
+
+    i. The loss is the expected cross-entropy (log-likelihood of Softmax) under the normal distribution N(fW, sigma^2)
+    ii. N(fW, sigma^2) can be reparameterised as x | W  ~ fW + sigma^2 * N(0, 1)
+    iii. The expected log-likelihood can therefore be expressed via MC integration by:
+         loss = sum_over_voxels ( log ( 1/T sum_over_T ( Softmax(x) )
+
     :param prediction:
     :param ground_truth:
     :param noise:
     :param T
     :return:
     """
-    raise NotImplementedError
+    if len(ground_truth.shape) == len(prediction.shape):
+        ground_truth = ground_truth[..., -1]
+    ground_truth = tf.cast(ground_truth, tf.int32)
+
+    # define Normal distribution to sample from
+    tfd = tfp.distributions
+    # zero-meaned, unit-variance Normal distribution
+    normal_dist = tfd.Normal(loc=0., scale=1.)
+
+    # prediction is of size (batch_size, N_voxels, num_classes)
+    # randomly sample across batches
+    tensor_shape = prediction.shape
+
+    stochastic_entropy = 0
+    for _ in range(T):
+        # broadcasting to multiply noise (batch_size, N_voxels, 1) with distribution (batch_size, N_voxels, num_classes)
+        random_logits = prediction + tf.multiply(noise, normal_dist.sample(tensor_shape))
+        stochastic_entropy += tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits=random_logits, labels=ground_truth)
+    stochastic_entropy = stochastic_entropy / T
+
+    return tf.reduce_mean(stochastic_entropy)
