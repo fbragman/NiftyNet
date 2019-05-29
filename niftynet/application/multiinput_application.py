@@ -38,8 +38,8 @@ from niftynet.layer.rand_elastic_deform import RandomElasticDeformationLayer
 SUPPORTED_INPUT = set(['image_1', 'image_2', 'output_1', 'output_2', 'weight', 'sampler', 'inferred'])
 
 
-class MultiTaskApplication(BaseApplication):
-    REQUIRED_CONFIG_SECTION = "MULTITASK"
+class MultiInputApplication(BaseApplication):
+    REQUIRED_CONFIG_SECTION = "MULTIINPUT"
 
     def __init__(self, net_param, action_param, action):
         BaseApplication.__init__(self)
@@ -81,8 +81,8 @@ class MultiTaskApplication(BaseApplication):
             reader_names_input_2 = ('image_2', 'output_2', 'weight_2', 'sampler')
         elif self.is_inference:
             # in the inference process use `image` input only
-            reader_names_input_1 = ('image_1')
-            reader_names_input_2 = ('image_2')
+            reader_names_input_1 = 'image_1'
+            reader_names_input_2 = 'image_2'
         elif self.is_evaluation:
             reader_names_input_1 = ('image_1', 'output_1', 'inferred_1')
             reader_names_input_2 = ('image_2', 'output_2', 'inferred_2')
@@ -164,16 +164,22 @@ class MultiTaskApplication(BaseApplication):
                     std_deformation_sigma=train_param.deformation_sigma,
                     proportion_to_augment=train_param.proportion_to_deform))
 
-        # only add augmentation to first reader (not validation reader)
-        self.readers[0].add_preprocessing_layers(
+        # augmentation + pre-processing on both readers
+        self.readers_input_1[0].add_preprocessing_layers(
+            volume_padding_layer + normalisation_layers + augmentation_layers)
+        self.readers_input_2[0].add_preprocessing_layers(
             volume_padding_layer + normalisation_layers + augmentation_layers)
 
-        for reader in self.readers[1:]:
+        for reader in self.readers_input_1[1:]:
+            reader.add_preprocessing_layers(
+                volume_padding_layer + normalisation_layers)
+
+        for reader in self.readers_input_2[1:]:
             reader.add_preprocessing_layers(
                 volume_padding_layer + normalisation_layers)
 
     def initialise_uniform_sampler_input_1(self):
-        self.sampler = [[UniformSampler(
+        self.sampler_input_1 = [[UniformSampler(
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
@@ -181,8 +187,8 @@ class MultiTaskApplication(BaseApplication):
             queue_length=self.net_param.queue_length) for reader in
             self.readers_input_1]]
 
-    def initialise_uniform_sampler_2(self):
-        self.sampler = [[UniformSampler(
+    def initialise_uniform_sampler_input_2(self):
+        self.sampler_input_2 = [[UniformSampler(
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
@@ -284,20 +290,32 @@ class MultiTaskApplication(BaseApplication):
                                  outputs_collector=None,
                                  gradients_collector=None):
 
-        def switch_sampler(for_training):
+        def switch_sampler(for_training, input_number):
             with tf.name_scope('train' if for_training else 'validation'):
-                sampler = self.get_sampler()[0][0 if for_training else -1]
+                if input_number == 1:
+                    sampler = self.get_sampler_input_1()[0][0 if for_training else -1]
+                else:
+                    sampler = self.get_sampler_input_2()[0][0 if for_training else -1]
                 return sampler.pop_batch_op()
 
-        if self.is_training:
+        def get_data_dict(input_number):
             if self.action_param.validation_every_n > 0:
                 data_dict = tf.cond(tf.logical_not(self.is_validation),
-                                    lambda: switch_sampler(for_training=True),
-                                    lambda: switch_sampler(for_training=False))
+                                    lambda: switch_sampler(for_training=True, input_number=input_number),
+                                    lambda: switch_sampler(for_training=False, input_number=input_number))
             else:
-                data_dict = switch_sampler(for_training=True)
+                data_dict = switch_sampler(for_training=True, input_number=input_number)
+            return data_dict
 
-            image = tf.cast(data_dict['image'], tf.float32)
+        if self.is_training:
+
+            data_dict_input_1 = get_data_dict(1)
+            data_dict_input_2 = get_data_dict(2)
+
+            image_input_1 = tf.cast(data_dict_input_1['image_1'], tf.float32)
+            image_input_2 = tf.cast(data_dict_input_2['image_2'], tf.float32)
+            image = tf.stack([image_input_1, image_input_2], axis=0)
+
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
 
@@ -311,22 +329,24 @@ class MultiTaskApplication(BaseApplication):
                     name=self.action_param.optimiser)
                 self.optimiser = optimiser_class.get_instance(
                     learning_rate=self.action_param.lr)
-            loss_func = LossFunction(loss_type=self.action_param.loss_type)
+            loss_func = LossRegFunction(loss_type=self.action_param.loss_type)
 
             crop_layer = CropLayer(border=self.regression_param.loss_border)
-            weight_map = data_dict.get('weight', None)
-            weight_map = None if weight_map is None else crop_layer(weight_map)
-            data_loss = loss_func(
-                prediction=crop_layer(net_out),
-                ground_truth=crop_layer(data_dict['output']),
-                weight_map=weight_map)
-            reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-            if self.net_param.decay > 0.0 and reg_losses:
-                reg_loss = tf.reduce_mean(
-                    [tf.reduce_mean(reg_loss) for reg_loss in reg_losses])
-                loss = data_loss + reg_loss
-            else:
-                loss = data_loss
+            # weight_map = data_dict.get('weight', None)
+            # weight_map = None if weight_map is None else crop_layer(weight_map)
+            # data_loss = loss_func(
+            #     prediction=crop_layer(net_out),
+            #     ground_truth=crop_layer(data_dict['output']),
+            #     weight_map=weight_map)
+            # reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+            # if self.net_param.decay > 0.0 and reg_losses:
+            #     reg_loss = tf.reduce_mean(
+            #         [tf.reduce_mean(reg_loss) for reg_loss in reg_losses])
+            #     loss = data_loss + reg_loss
+            # else:
+            #     loss = data_loss
+            data_loss = None
+            loss = None
 
             # Get all vars
             to_optimise = tf.trainable_variables()

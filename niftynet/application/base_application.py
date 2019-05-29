@@ -58,6 +58,13 @@ class BaseApplication(with_metaclass(SingletonApplication, object)):
     readers = None
     sampler = None
 
+    # for multi-input application
+    readers_input_1 = None
+    readers_input_2 = None
+
+    sampler_input_1 = None
+    sampler_input_2 = None
+
     # the network
     net = None
 
@@ -184,6 +191,22 @@ class BaseApplication(with_metaclass(SingletonApplication, object)):
         :return: ``niftynet.engine.sampler_*`` instances
         """
         return self.sampler
+
+    def get_sampler_input_1(self):
+        """
+        Get samplers of the application
+
+        :return: ``niftynet.engine.sampler_*`` instances
+        """
+        return self.sampler_input_1
+
+    def get_sampler_input_2(self):
+        """
+        Get samplers of the application
+
+        :return: ``niftynet.engine.sampler_*`` instances
+        """
+        return self.sampler_input_2
 
     def add_validation_flag(self):
         """
