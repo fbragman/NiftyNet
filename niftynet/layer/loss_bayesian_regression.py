@@ -112,18 +112,8 @@ def gaussian_likelihood_loss(prediction, ground_truth, noise, weight_map=None, c
     if constant > 0. or constant is not None:
         noise = tf.log(tf.exp(noise) + constant)
 
-    precision = 0.5*(tf.exp(-noise))
+    sigma_squared = tf.exp(-noise)
+    squared_residuals = tf.square(tf.subtract(prediction, ground_truth))
 
-    residuals = tf.subtract(prediction, ground_truth)
-
-    squared_residuals = tf.square(residuals)
-    loss = tf.add(tf.multiply(precision, squared_residuals), noise)
-
+    loss = tf.multiply(0.5*sigma_squared, squared_residuals) + 0.5*noise
     return tf.reduce_mean(loss)
-
-
-    residuals = tf.subtract(prediction, ground_truth)
-    if weight_map is not None:
-        residuals = \
-            tf.multiply(residuals, weight_map) / tf.reduce_sum(weight_map)
-    return tf.nn.l2_loss(residuals)
