@@ -233,6 +233,16 @@ def __add_multiinput_args(parser):
         type=float,
         default=1)
 
+    parser.add_argument(
+        "--window_sampling_1",
+        metavar='TYPE_STR',
+        default='uniform_1')
+
+    parser.add_argument(
+        "--window_sampling_2",
+        metavar='TYPE_STR',
+        default='uniform_2')
+
     from niftynet.application.multiinput_application import SUPPORTED_INPUT
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser

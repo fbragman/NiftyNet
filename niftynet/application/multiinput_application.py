@@ -50,7 +50,7 @@ class MultiInputApplication(BaseApplication):
         self.action_param = action_param
 
         self.data_param = None
-        self.regression_param = None
+        self.multiinput_param = None
         self.SUPPORTED_SAMPLING = {
             'uniform_1': (self.initialise_uniform_sampler_input_1,
                           self.initialise_grid_sampler,
@@ -73,7 +73,7 @@ class MultiInputApplication(BaseApplication):
             self, data_param=None, task_param=None, data_partitioner=None):
 
         self.data_param = data_param
-        self.regression_param = task_param
+        self.multiinput_param = task_param
 
         # initialise input image readers
         if self.is_training:
@@ -254,12 +254,15 @@ class MultiInputApplication(BaseApplication):
 
     def initialise_sampler(self):
         if self.is_training:
-            self.SUPPORTED_SAMPLING[self.net_param.window_sampling][0]()
+            self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_1][0]()
+            self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_2][0]()
         elif self.is_inference:
-            self.SUPPORTED_SAMPLING[self.net_param.window_sampling][1]()
+            self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_1][1]()
+            self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_2][0]()
 
     def initialise_aggregator(self):
-        self.SUPPORTED_SAMPLING[self.net_param.window_sampling][2]()
+        self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_1][2]()
+        self.SUPPORTED_SAMPLING[self.multiinput_param.window_sampling_2][2]()
 
     def initialise_network(self):
         w_regularizer = None
@@ -276,8 +279,7 @@ class MultiInputApplication(BaseApplication):
             b_regularizer = regularizers.l1_regularizer(decay)
 
         self.net = ApplicationNetFactory.create(self.net_param.name)(
-            num_classes=self.multitask_param.num_classes,
-            net_scale=self.multitask_param.net_scale,
+            num_classes=self.multiinput_param.num_classes,
             w_initializer=InitializerFactory.get_initializer(
                 name=self.net_param.weight_initializer),
             b_initializer=InitializerFactory.get_initializer(
