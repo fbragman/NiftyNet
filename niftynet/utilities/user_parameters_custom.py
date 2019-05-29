@@ -175,6 +175,132 @@ def __add_segmentation_args(parser):
     return parser
 
 
+def __add_multiinput_args(parser):
+    parser.add_argument(
+        "--loss_border",
+        metavar='',
+        help="Set the border size for the loss function to ignore",
+        type=int,
+        default=0)
+
+    parser.add_argument(
+        "--noise_model",
+        metavar='TYPE_STR',
+        help="Homoscedatic or heteroscedatic noise modelling",
+        default='homo')
+
+    parser.add_argument(
+        "--num_classes",
+        help="Set number of classes for each task",
+        type=int_array,
+        default=-1)
+
+    parser.add_argument(
+        "--loss_1",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 1 type_str",
+        default='CrossEntropy')
+
+    parser.add_argument(
+        "--loss_2",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 2 type_str",
+        default='L2Loss')
+
+    parser.add_argument(
+        "--task_1",
+        metavar='TYPE_STR')
+
+    parser.add_argument(
+        "--task_2",
+        metavar='TYPE_STR')
+
+    parser.add_argument(
+        "--multitask_loss",
+        metavar='TYPE_STR',
+        help="[Training only] type of loss function for multi-task application",
+        default='average')
+
+    parser.add_argument(
+        "--loss_sigma_1",
+        help='Initial value for task 1 homoscedatic noise or multi-task weight',
+        type=float,
+        default=1)
+
+    parser.add_argument(
+        "--loss_sigma_2",
+        help='Initial value for task 2 homoscedatic noise or multi-task weight',
+        type=float,
+        default=1)
+
+    from niftynet.application.multiinput_application import SUPPORTED_INPUT
+    parser = add_input_name_args(parser, SUPPORTED_INPUT)
+    return parser
+
+
+def __add_multitask_args(parser):
+    parser.add_argument(
+        "--loss_border",
+        metavar='',
+        help="Set the border size for the loss function to ignore",
+        type=int,
+        default=0)
+
+    parser.add_argument(
+        "--noise_model",
+        metavar='TYPE_STR',
+        help="Homoscedatic or heteroscedatic noise modelling",
+        default='homo')
+
+    parser.add_argument(
+        "--num_classes",
+        help="Set number of classes for each task",
+        type=int_array,
+        default=-1)
+
+    parser.add_argument(
+        "--loss_1",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 1 type_str",
+        default='CrossEntropy')
+
+    parser.add_argument(
+        "--loss_2",
+        metavar='TYPE_STR',
+        help="[Training only] loss function for task 2 type_str",
+        default='L2Loss')
+
+    parser.add_argument(
+        "--task_1",
+        metavar='TYPE_STR')
+
+    parser.add_argument(
+        "--task_2",
+        metavar='TYPE_STR')
+
+    parser.add_argument(
+        "--multitask_loss",
+        metavar='TYPE_STR',
+        help="[Training only] type of loss function for multi-task application",
+        default='average')
+
+    parser.add_argument(
+        "--loss_sigma_1",
+        help='Initial value for task 1 homoscedatic noise or multi-task weight',
+        type=float,
+        default=1)
+
+    parser.add_argument(
+        "--loss_sigma_2",
+        help='Initial value for task 2 homoscedatic noise or multi-task weight',
+        type=float,
+        default=1)
+
+    from niftynet.application.multitask_application import SUPPORTED_INPUT
+    parser = add_input_name_args(parser, SUPPORTED_INPUT)
+    return parser
+
+
 def __add_gan_args(parser):
     """
     keywords defined for GAN
@@ -294,5 +420,7 @@ SUPPORTED_ARG_SECTIONS = {
     'CLASSIFICATION': __add_classification_args,
     'AUTOENCODER': __add_autoencoder_args,
     'GAN': __add_gan_args,
-    'REGISTRATION': __add_registration_args
+    'REGISTRATION': __add_registration_args,
+    'MULTITASK': __add_multitask_args,
+    'MULTIINPUT': __add_multiinput_args
 }
