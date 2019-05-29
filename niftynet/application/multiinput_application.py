@@ -35,7 +35,7 @@ from niftynet.layer.rgb_histogram_equilisation import \
 from niftynet.evaluation.regression_evaluator import RegressionEvaluator
 from niftynet.layer.rand_elastic_deform import RandomElasticDeformationLayer
 
-SUPPORTED_INPUT = set(['image_1', 'image_2', 'output_task1', 'output_task2', 'weight', 'sampler', 'inferred'])
+SUPPORTED_INPUT = set(['image_1', 'image_2', 'output_1', 'output_2', 'weight', 'sampler', 'inferred'])
 
 
 class MultiTaskApplication(BaseApplication):
@@ -52,9 +52,12 @@ class MultiTaskApplication(BaseApplication):
         self.data_param = None
         self.regression_param = None
         self.SUPPORTED_SAMPLING = {
-            'uniform': (self.initialise_uniform_sampler,
-                        self.initialise_grid_sampler,
-                        self.initialise_grid_aggregator),
+            'uniform_1': (self.initialise_uniform_sampler_input_1,
+                          self.initialise_grid_sampler,
+                          self.initialise_grid_aggregator),
+            'uniform_2': (self.initialise_uniform_sampler_input_2,
+                          self.initialise_grid_sampler,
+                          self.initialise_grid_aggregator),
             'weighted': (self.initialise_weighted_sampler,
                          self.initialise_grid_sampler,
                          self.initialise_grid_aggregator),
@@ -74,12 +77,15 @@ class MultiTaskApplication(BaseApplication):
 
         # initialise input image readers
         if self.is_training:
-            reader_names = ('image_1', 'image_2', 'output_task1', 'output_task2', 'weight', 'sampler')
+            reader_names_input_1 = ('image_1', 'output_1', 'weight_1', 'sampler')
+            reader_names_input_2 = ('image_2', 'output_2', 'weight_2', 'sampler')
         elif self.is_inference:
             # in the inference process use `image` input only
-            reader_names = ('image',)
+            reader_names_input_1 = ('image_1')
+            reader_names_input_2 = ('image_2')
         elif self.is_evaluation:
-            reader_names = ('image', 'output_task1', 'output_task2', 'inferred')
+            reader_names_input_1 = ('image_1', 'output_1', 'inferred_1')
+            reader_names_input_2 = ('image_2', 'output_2', 'inferred_2')
         else:
             tf.logging.fatal(
                 'Action `%s` not supported. Expected one of %s',
@@ -91,8 +97,13 @@ class MultiTaskApplication(BaseApplication):
             reader_phase = None
         file_lists = data_partitioner.get_file_lists_by(
             phase=reader_phase, action=self.action)
-        self.readers = [
-            ImageReader(reader_names).initialise(
+
+        self.readers_input_1 = [
+            ImageReader(reader_names_input_1).initialise(
+                data_param, task_param, file_list) for file_list in file_lists]
+
+        self.readers_input_2 = [
+            ImageReader(reader_names_input_2).initialise(
                 data_param, task_param, file_list) for file_list in file_lists]
 
         # initialise input preprocessing layers
@@ -161,14 +172,23 @@ class MultiTaskApplication(BaseApplication):
             reader.add_preprocessing_layers(
                 volume_padding_layer + normalisation_layers)
 
-    def initialise_uniform_sampler(self):
+    def initialise_uniform_sampler_input_1(self):
         self.sampler = [[UniformSampler(
             reader=reader,
             window_sizes=self.data_param,
             batch_size=self.net_param.batch_size,
             windows_per_image=self.action_param.sample_per_volume,
             queue_length=self.net_param.queue_length) for reader in
-            self.readers]]
+            self.readers_input_1]]
+
+    def initialise_uniform_sampler_2(self):
+        self.sampler = [[UniformSampler(
+            reader=reader,
+            window_sizes=self.data_param,
+            batch_size=self.net_param.batch_size,
+            windows_per_image=self.action_param.sample_per_volume,
+            queue_length=self.net_param.queue_length) for reader in
+            self.readers_input_2]]
 
     def initialise_weighted_sampler(self):
         self.sampler = [[WeightedSampler(
