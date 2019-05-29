@@ -18,10 +18,10 @@ from niftynet.layer.crop import CropLayer
 from niftynet.layer.histogram_normalisation import \
     HistogramNormalisationLayer
 
-from niftynet.layer.loss_regression import LossFunctionReg
-from niftynet.layer.loss_segmentation import LossFunctionSeg
-from niftynet.layer.loss_bayesian_regression import LossFunctionBReg
-from niftynet.layer.loss_bayesian_segmentation import LossFunctionBSeg
+from niftynet.layer.loss_regression import LossFunction as LossSegFunction
+from niftynet.layer.loss_segmentation import LossFunction as LossRegFunction
+from niftynet.layer.loss_bayesian_regression import LossBayesianRegFunction
+from niftynet.layer.loss_bayesian_segmentation import LossBayesianSegFunction
 
 from niftynet.layer.mean_variance_normalisation import \
     MeanVarNormalisationLayer

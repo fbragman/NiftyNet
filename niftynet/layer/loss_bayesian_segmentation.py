@@ -14,14 +14,14 @@ from niftynet.engine.application_factory import LossSegmentationFactory
 from niftynet.layer.base_layer import Layer
 
 
-class LossFunction(Layer):
+class LossBayesianSegFunction(Layer):
     def __init__(self,
                  n_class,
                  loss_type='ScaledCrossEntropyApprox',
                  loss_func_params=None,
                  name='loss_function'):
 
-        super(LossFunction, self).__init__(name=name)
+        super(LossBayesianSegFunction, self).__init__(name=name)
         assert n_class > 0, \
             "Number of classes for segmentation loss should be positive."
         self._num_classes = n_class

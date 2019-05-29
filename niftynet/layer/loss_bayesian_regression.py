@@ -12,13 +12,13 @@ from niftynet.engine.application_factory import LossBayesianRegressionFactory
 from niftynet.layer.base_layer import Layer
 
 
-class LossFunction(Layer):
+class LossBayesianRegFunction(Layer):
     def __init__(self,
                  loss_type='Gaussian',
                  loss_func_params=None,
                  name='loss_function'):
 
-        super(LossFunction, self).__init__(name=name)
+        super(LossBayesianRegFunction, self).__init__(name=name)
 
         # set loss function and function-specific additional params.
         self._data_loss_func = LossBayesianRegressionFactory.create(loss_type)
