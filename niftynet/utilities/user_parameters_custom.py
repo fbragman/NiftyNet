@@ -243,6 +243,13 @@ def __add_multiinput_args(parser):
         metavar='TYPE_STR',
         default='uniform_2')
 
+    parser.add_argument(
+        "--multi_input",
+        metavar='',
+        type=str2boolean,
+        default=False
+    )
+
     from niftynet.application.multiinput_application import SUPPORTED_INPUT
     parser = add_input_name_args(parser, SUPPORTED_INPUT)
     return parser

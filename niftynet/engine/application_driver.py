@@ -65,6 +65,9 @@ class ApplicationDriver(object):
 
         self.data_partitioner = ImageSetsPartitioner()
 
+        self.data_partitioner_1 = ImageSetsPartitioner()
+        self.data_partitioner_2 = ImageSetsPartitioner()
+
         self._event_handlers = None
         self._generator = None
 
@@ -133,7 +136,12 @@ class ApplicationDriver(object):
         self.app = app_module(net_param, action_param, system_param.action)
 
         # clear the cached file lists
-        self.data_partitioner.reset()
+        if app_param.multi_input is False:
+            self.data_partitioner.reset()
+        else:
+            self.data_partitioner_1.reset()
+            self.data_partitioner_2.reset()
+
         if data_param:
             do_new_partition = \
                 self.is_training_action and \
@@ -144,23 +152,36 @@ class ApplicationDriver(object):
                               train_param.exclude_fraction_for_inference) \
                 if do_new_partition else None
 
-            self.data_partitioner.initialise(
-                data_param=data_param,
-                new_partition=do_new_partition,
-                ratios=data_fractions,
-                data_split_file=system_param.dataset_split_file)
-            assert self.data_partitioner.has_validation or \
-                self.validation_every_n <= 0, \
-                'validation_every_n is set to {}, ' \
-                'but train/validation splitting not available.\nPlease ' \
-                'check dataset partition list {} ' \
-                '(remove file to generate a new dataset partition), ' \
-                'check "exclude_fraction_for_validation" ' \
-                '(current config value: {}).\nAlternatively, ' \
-                'set "validation_every_n" to -1.'.format(
-                    self.validation_every_n,
-                    system_param.dataset_split_file,
-                    train_param.exclude_fraction_for_validation)
+            if app_param.multi_input is False:
+                self.data_partitioner.initialise(
+                    data_param=data_param,
+                    new_partition=do_new_partition,
+                    ratios=data_fractions,
+                    data_split_file=system_param.dataset_split_file)
+                assert self.data_partitioner.has_validation or \
+                    self.validation_every_n <= 0, \
+                    'validation_every_n is set to {}, ' \
+                    'but train/validation splitting not available.\nPlease ' \
+                    'check dataset partition list {} ' \
+                    '(remove file to generate a new dataset partition), ' \
+                    'check "exclude_fraction_for_validation" ' \
+                    '(current config value: {}).\nAlternatively, ' \
+                    'set "validation_every_n" to -1.'.format(
+                        self.validation_every_n,
+                        system_param.dataset_split_file,
+                        train_param.exclude_fraction_for_validation)
+            else:
+                self.data_partitioner_1.initialise(
+                    data_param=data_param,
+                    new_partition=do_new_partition,
+                    ratios=data_fractions,
+                    data_split_file=system_param.dataset_split_file_1)
+
+                self.data_partitioner_2.initialise(
+                    data_param=data_param,
+                    new_partition=do_new_partition,
+                    ratios=data_fractions,
+                    data_split_file=system_param.dataset_split_file_2)
 
         # initialise readers
         self.app.initialise_dataset_loader(

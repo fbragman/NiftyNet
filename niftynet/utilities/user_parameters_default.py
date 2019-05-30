@@ -18,6 +18,10 @@ from niftynet.utilities.util_import import require_module
 DEFAULT_INFERENCE_OUTPUT = os.path.join('.', 'output')
 DEFAULT_EVALUATION_OUTPUT = os.path.join('.', 'evaluation')
 DEFAULT_DATASET_SPLIT_FILE = os.path.join('.', 'dataset_split.csv')
+
+DEFAULT_DATASET_SPLIT_FILE_1 = os.path.join('.', 'dataset_split_1.csv')
+DEFAULT_DATASET_SPLIT_FILE_2 = os.path.join('.', 'dataset_split_2.csv')
+
 DEFAULT_HISTOGRAM_REF_FILE = os.path.join('.', 'histogram_ref_file.txt')
 DEFAULT_MODEL_DIR = None
 DEFAULT_EVENT_HANDLERS = ('model_saver', 'model_restorer', 'sampler_threading',
@@ -67,6 +71,18 @@ def add_application_args(parser):
         metavar='',
         help="File assigning subjects to training/validation/inference subsets",
         default=DEFAULT_DATASET_SPLIT_FILE)
+
+    parser.add_argument(
+        "--dataset_split_file_1",
+        metavar='',
+        help="File assigning subjects to training/validation/inference subsets for dataset 1 if multi-input",
+        default=DEFAULT_DATASET_SPLIT_FILE_1)
+
+    parser.add_argument(
+        "--dataset_split_file_2",
+        metavar='',
+        help="File assigning subjects to training/validation/inference subsets for dataset 2 if multi-input",
+        default=DEFAULT_DATASET_SPLIT_FILE_2)
 
     parser.add_argument(
         "--event_handler",
