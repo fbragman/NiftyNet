@@ -70,7 +70,7 @@ class MultiInputApplication(BaseApplication):
         }
 
     def initialise_dataset_loader(
-            self, data_param=None, task_param=None, data_partitioner=None):
+            self, data_param=None, task_param=None, data_partitioners=None):
 
         self.data_param = data_param
         self.multiinput_param = task_param
@@ -95,16 +95,19 @@ class MultiInputApplication(BaseApplication):
             reader_phase = self.action_param.dataset_to_infer
         except AttributeError:
             reader_phase = None
-        file_lists = data_partitioner.get_file_lists_by(
-            phase=reader_phase, action=self.action)
+
+        file_lists = []
+        for data_partitioner in data_partitioners:
+            file_lists.append(data_partitioner.get_file_lists_by(
+                phase=reader_phase, action=self.action))
 
         self.readers_input_1 = [
             ImageReader(reader_names_input_1).initialise(
-                data_param, task_param, file_list) for file_list in file_lists]
+                data_param, task_param, file_list) for file_list in file_lists[0]]
 
         self.readers_input_2 = [
             ImageReader(reader_names_input_2).initialise(
-                data_param, task_param, file_list) for file_list in file_lists]
+                data_param, task_param, file_list) for file_list in file_lists[1]]
 
         # initialise input preprocessing layers
         mean_var_normaliser = MeanVarNormalisationLayer(image_name='image') \

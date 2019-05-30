@@ -143,11 +143,31 @@ class ApplicationDriver(object):
             self.data_partitioner_2.reset()
 
         if data_param:
-            do_new_partition = \
-                self.is_training_action and \
-                (not os.path.isfile(system_param.dataset_split_file)) and \
-                (train_param.exclude_fraction_for_validation > 0 or
-                 train_param.exclude_fraction_for_inference > 0)
+
+            dataset_file_exists = os.path.isfile(system_param.dataset_split_file)
+            if app_param.multi_input is not False:
+                dataset_1_file_exists = os.path.isfile(app_param.dataset_split_file)
+                dataset_2_file_exists = os.path.isfile(app_param.dataset_split_file)
+
+            if app_param.multi_input is not False:
+                do_new_partition = \
+                    self.is_training_action and \
+                    not dataset_file_exists and \
+                    (train_param.exclude_fraction_for_validation > 0 or
+                     train_param.exclude_fraction_for_inference > 0)
+            else:
+                do_new_partition_1 = \
+                    self.is_training_action and \
+                    not dataset_1_file_exists and \
+                    (train_param.exclude_fraction_for_validation > 0 or
+                     train_param.exclude_fraction_for_inference > 0)
+
+                do_new_partition_2 = \
+                    self.is_training_action and \
+                    not dataset_2_file_exists and \
+                    (train_param.exclude_fraction_for_validation > 0 or
+                     train_param.exclude_fraction_for_inference > 0)
+
             data_fractions = (train_param.exclude_fraction_for_validation,
                               train_param.exclude_fraction_for_inference) \
                 if do_new_partition else None
@@ -184,8 +204,12 @@ class ApplicationDriver(object):
                     data_split_file=system_param.dataset_split_file_2)
 
         # initialise readers
+        if app_param.multi_input is False:
+            data_partitioner_list = [self.data_partitioner]
+        else:
+            data_partitioner_list = [self.data_partitioner_1, self.data_partitioner_2]
         self.app.initialise_dataset_loader(
-            data_param, app_param, self.data_partitioner)
+            data_param, app_param, data_partitioner_list)
 
         # make the list of initialised event handler instances.
         self.load_event_handlers(
