@@ -146,15 +146,23 @@ class ApplicationDriver(object):
 
             dataset_file_exists = os.path.isfile(system_param.dataset_split_file)
             if app_param.multi_input is not False:
-                dataset_1_file_exists = os.path.isfile(app_param.dataset_split_file)
-                dataset_2_file_exists = os.path.isfile(app_param.dataset_split_file)
+                dataset_1_file_exists = os.path.isfile(system_param.dataset_split_file_1)
+                dataset_2_file_exists = os.path.isfile(system_param.dataset_split_file_2)
+            else:
+                dataset_1_file_exists = False
+                dataset_2_file_exists = False
 
-            if app_param.multi_input is not False:
+            if app_param.multi_input is False:
                 do_new_partition = \
                     self.is_training_action and \
                     not dataset_file_exists and \
                     (train_param.exclude_fraction_for_validation > 0 or
                      train_param.exclude_fraction_for_inference > 0)
+
+                data_fractions = (train_param.exclude_fraction_for_validation,
+                                  train_param.exclude_fraction_for_inference) \
+                    if do_new_partition else None
+
             else:
                 do_new_partition_1 = \
                     self.is_training_action and \
@@ -168,9 +176,13 @@ class ApplicationDriver(object):
                     (train_param.exclude_fraction_for_validation > 0 or
                      train_param.exclude_fraction_for_inference > 0)
 
-            data_fractions = (train_param.exclude_fraction_for_validation,
-                              train_param.exclude_fraction_for_inference) \
-                if do_new_partition else None
+                data_fractions_1 = (train_param.exclude_fraction_for_validation,
+                                    train_param.exclude_fraction_for_inference) \
+                    if do_new_partition_1 else None
+
+                data_fractions_2 = (train_param.exclude_fraction_for_validation,
+                                    train_param.exclude_fraction_for_inference) \
+                    if do_new_partition_2 else None
 
             if app_param.multi_input is False:
                 self.data_partitioner.initialise(
@@ -191,16 +203,20 @@ class ApplicationDriver(object):
                         system_param.dataset_split_file,
                         train_param.exclude_fraction_for_validation)
             else:
+
+                data_param_1 = {k: v for k, v in data_param.items() if k.endswith('1')}
+                data_param_2 = {k: v for k, v in data_param.items() if k.endswith('2')}
+
                 self.data_partitioner_1.initialise(
-                    data_param=data_param,
-                    new_partition=do_new_partition,
-                    ratios=data_fractions,
+                    data_param=data_param_1,
+                    new_partition=do_new_partition_1,
+                    ratios=data_fractions_1,
                     data_split_file=system_param.dataset_split_file_1)
 
                 self.data_partitioner_2.initialise(
-                    data_param=data_param,
-                    new_partition=do_new_partition,
-                    ratios=data_fractions,
+                    data_param=data_param_2,
+                    new_partition=do_new_partition_2,
+                    ratios=data_fractions_2,
                     data_split_file=system_param.dataset_split_file_2)
 
         # initialise readers

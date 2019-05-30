@@ -319,7 +319,7 @@ class MultiInputApplication(BaseApplication):
 
             image_input_1 = tf.cast(data_dict_input_1['image_1'], tf.float32)
             image_input_2 = tf.cast(data_dict_input_2['image_2'], tf.float32)
-            image = tf.stack([image_input_1, image_input_2], axis=0)
+            image = tf.concat([image_input_1, image_input_2], axis=0)
 
             net_args = {'is_training': self.is_training,
                         'keep_prob': self.net_param.keep_prob}
