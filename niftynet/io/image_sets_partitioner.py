@@ -29,8 +29,11 @@ COLUMN_UNIQ_ID = 'subject_id'
 COLUMN_PHASE = 'phase'
 SUPPORTED_PHASES = {TRAIN, VALID, INFER, ALL}
 
+####################################
+# @singleton decorator removed to allow multiple independent dataset partitioning
+####################################
 
-@singleton
+
 class ImageSetsPartitioner(object):
     """
     This class maintains a pandas.dataframe of filenames for all input sections.
@@ -41,22 +44,13 @@ class ImageSetsPartitioner(object):
     label and input section names.
     """
 
-    def __init__(self):
-        self.data_param = None
-
-    @property
-    def data_param(self):
-        return self.__data_param
-
-    @data_param.setter
-    def data_param(self, data_param):
-        self.__data_param = data_param
 
     # dataframe (table) of file names in a shape of subject x modality
     _file_list = None
     # dataframes of subject_id:phase_id
     _partition_ids = None
 
+    data_param = None
     ratios = None
     new_partition = False
 
@@ -67,12 +61,14 @@ class ImageSetsPartitioner(object):
         NiftyNetGlobalConfig().get_niftynet_home_folder()
 
     def initialise(self,
+                   data_param,
                    new_partition=False,
                    data_split_file=None,
                    ratios=None):
         """
         Set the data partitioner parameters
 
+        :param data_param: corresponding to all config sections
         :param new_partition: bool value indicating whether to generate new
             partition ids and overwrite csv file
             (this class will write partition file iff new_partition)
@@ -82,6 +78,7 @@ class ImageSetsPartitioner(object):
             initialise to None will disable data partitioning
             and get_file_list always returns all subjects.
         """
+        self.data_param = data_param
         if data_split_file is None:
             self.data_split_file = os.path.join('.', 'dataset_split.csv')
         else:
