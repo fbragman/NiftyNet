@@ -329,6 +329,12 @@ class MultiInputApplication(BaseApplication):
             # task_i_noise - if modelled, heteroscedastic noise for task_i
             net_out = self.net(image, **net_args)
 
+            task_1_prediction = net_out['task_1_prediction']
+            task_2_prediction = net_out['task_2_prediction']
+
+            task_1_noise = net_out['task_1_noise']
+            task_2_noise = net_out['task_2_noise']
+
             with tf.name_scope('Optimiser'):
                 optimiser_class = OptimiserFactory.create(
                     name=self.action_param.optimiser)
